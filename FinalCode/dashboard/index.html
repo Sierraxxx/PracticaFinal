@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sorting Benchmark Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg-0:#0a0d14; --bg-1:#10141d; --bg-2:#161b27; --bg-3:#1d2433;
+  --border:#252c3d; --border-hi:#3a4258;
+  --text:#e6eaf2; --text-dim:#8b95a8; --text-faint:#5a6377;
+  --accent:#4ade80; --accent-2:#22d3ee; --accent-3:#f59e0b;
+  --dial:#4ade80; --warn:#f59e0b; --error:#ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:-apple-system,'Segoe UI',Inter,Roboto,sans-serif;background:var(--bg-0);color:var(--text);min-height:100vh}
+body{display:grid;grid-template-columns:240px 1fr;grid-template-rows:auto 1fr}
+aside{grid-row:1/3;background:var(--bg-1);border-right:1px solid var(--border);padding:24px 16px;display:flex;flex-direction:column;gap:8px}
+.logo{font-size:1.2rem;font-weight:700;color:var(--accent);margin-bottom:24px;display:flex;align-items:center;gap:8px}
+.logo svg{width:24px;height:24px}
+.logo small{font-size:.7rem;color:var(--text-faint);font-weight:400;display:block}
+.nav-item{padding:10px 14px;border-radius:8px;color:var(--text-dim);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:.9rem;transition:all .15s;border:1px solid transparent;user-select:none}
+.nav-item:hover{background:var(--bg-2);color:var(--text)}
+.nav-item.active{background:var(--bg-3);color:var(--accent);border-color:var(--border-hi)}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
+.sidebar-footer{margin-top:auto;font-size:.7rem;color:var(--text-faint);padding:12px;border-top:1px solid var(--border);line-height:1.4}
+header{background:var(--bg-1);border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:10}
+header h1{font-size:1.1rem;font-weight:600}
+header .subtitle{font-size:.8rem;color:var(--text-dim);margin-top:2px}
+.header-actions{display:flex;gap:8px}
+main{padding:24px 32px 48px;overflow-y:auto;max-height:calc(100vh - 70px)}
+.view{display:none}.view.active{display:block;animation:fadeIn .25s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.card{background:var(--bg-1);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px}
+.card h2{font-size:.85rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card h2 svg{width:16px;height:16px;color:var(--accent)}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.stat{background:var(--bg-1);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent)}
+.stat.dial::before{background:var(--dial)}
+.stat.warn::before{background:var(--warn)}
+.stat.cyan::before{background:var(--accent-2)}
+.stat-label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.stat-value{font-size:1.7rem;font-weight:700;font-variant-numeric:tabular-nums}
+.stat-meta{font-size:.75rem;color:var(--text-faint);margin-top:4px}
+.btn{background:var(--bg-2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s;font-family:inherit}
+.btn:hover{border-color:var(--border-hi);background:var(--bg-3)}
+.btn-primary{background:var(--accent);color:#0a0d14;border-color:var(--accent);font-weight:600}
+.btn-primary:hover{background:#22c55e;border-color:#22c55e}
+.btn-primary:disabled{background:var(--bg-3);color:var(--text-faint);cursor:not-allowed;border-color:var(--border)}
+.btn svg{width:14px;height:14px}
+label{font-size:.8rem;color:var(--text-dim);display:block;margin-bottom:6px}
+select,input[type=number],input[type=text]{background:var(--bg-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:.85rem;font-family:inherit;min-width:140px}
+select:focus,input:focus{outline:none;border-color:var(--accent)}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px}
+.dropzone{border:2px dashed var(--border-hi);border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg-1)}
+.dropzone:hover,.dropzone.over{border-color:var(--accent);background:var(--bg-2)}
+.dropzone svg{width:48px;height:48px;color:var(--text-dim);margin-bottom:12px}
+.dropzone strong{display:block;color:var(--text);margin-bottom:4px}
+.dropzone span{font-size:.85rem;color:var(--text-dim)}
+.table-wrap{overflow-x:auto;background:var(--bg-1);border:1px solid var(--border);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{background:var(--bg-2);color:var(--text-dim);text-align:left;padding:12px 16px;font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+td{padding:11px 16px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+tr.dial-row td:first-child{color:var(--dial);font-weight:600}
+tr.dial-row{background:rgba(74,222,128,.05)}
+.cell-best{color:var(--accent);font-weight:700}
+.chart-wrap{position:relative;height:340px;margin-top:8px}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:1100px){.chart-grid{grid-template-columns:1fr}}
+.badge{display:inline-block;padding:2px 8px;border-radius:9999px;font-size:.7rem;font-weight:600}
+.badge-ok{background:rgba(74,222,128,.2);color:var(--accent)}
+.badge-err{background:rgba(239,68,68,.2);color:var(--error)}
+.progress-bar{width:100%;height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .2s}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--bg-3);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.log{background:#000;border:1px solid var(--border);border-radius:8px;padding:14px;font-family:'JetBrains Mono','Menlo',monospace;font-size:.78rem;color:#a0e8a0;max-height:260px;overflow-y:auto;line-height:1.5;white-space:pre-wrap}
+.log .muted{color:#5a6377}.log .yellow{color:#fbbf24}.log .green{color:#4ade80}.log .red{color:#f87171}
+.bigo-table td,.bigo-table th{font-family:'JetBrains Mono',monospace}
+.empty{text-align:center;color:var(--text-dim);padding:48px 24px;font-size:.9rem}
+.empty svg{width:56px;height:56px;color:var(--text-faint);margin-bottom:12px;opacity:.5}
+.text-dim{color:var(--text-dim)}.text-dial{color:var(--dial)}.mono{font-family:'JetBrains Mono',monospace}
+code{background:var(--bg-2);padding:2px 6px;border-radius:4px;font-size:.85em;color:var(--accent-2)}
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    <div>DialSort<small>Benchmark v0.7.0</small></div>
+  </div>
+  <div class="nav-item active" data-view="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Overview</div>
+  <div class="nav-item" data-view="run"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>Run Benchmark</div>
+  <div class="nav-item" data-view="charts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Charts</div>
+  <div class="nav-item" data-view="table"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Full Results</div>
+  <div class="nav-item" data-view="bigo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h2l4-9 4 18 4-9h6"/></svg>Big-O Analysis</div>
+  <div class="nav-item" data-view="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import CSV</div>
+  <div class="sidebar-footer">Pure HTML/JS. No server.<br>Open with double-click.</div>
+</aside>
+
+<header>
+  <div>
+    <h1 id="view-title">Overview</h1>
+    <div class="subtitle" id="view-subtitle">Real-time benchmark dashboard</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn" id="btn-export-csv">Export CSV</button>
+    <button class="btn" id="btn-clear">Clear</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ═══ OVERVIEW VIEW ════════════════════════════════ -->
+  <section class="view active" id="view-overview">
+    <div class="stats-grid">
+      <div class="stat dial">
+        <div class="stat-label">Algorithms</div>
+        <div class="stat-value">5</div>
+        <div class="stat-meta">DialSort + 4 parallel</div>
+      </div>
+      <div class="stat cyan">
+        <div class="stat-label">Total Runs</div>
+        <div class="stat-value" id="stat-runs">0</div>
+        <div class="stat-meta">Across all configurations</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Best Throughput</div>
+        <div class="stat-value" id="stat-best-tput">—</div>
+        <div class="stat-meta" id="stat-best-algo">No data yet</div>
+      </div>
+      <div class="stat warn">
+        <div class="stat-label">DialSort Speedup</div>
+        <div class="stat-value" id="stat-speedup">—</div>
+        <div class="stat-meta">vs slowest, uniform data</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quick Start</h2>
+      <p class="text-dim" style="line-height:1.7;font-size:.9rem">Welcome to the <strong>DialSort Benchmark Dashboard</strong>. Three ways to use it:</p>
+      <ol style="margin:14px 0 0 20px;line-height:1.9;font-size:.9rem">
+        <li>Click <strong class="text-dial">Run Benchmark</strong> to execute the 5 algorithms in your browser using JavaScript.</li>
+        <li>Click <strong>Import CSV</strong> to load <code>benchmark_results.csv</code> generated by the C++ binary.</li>
+        <li>Once data is loaded, all other views populate automatically.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Top Performers (Median ms — lower is better)</h2>
+      <div class="chart-wrap"><canvas id="chart-overview"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ═══ RUN VIEW ═════════════════════════════════════ -->
+  <section class="view" id="view-run">
+    <div class="card">
+      <h2>Live Benchmark Configuration</h2>
+      <p class="text-dim" style="font-size:.85rem;margin-bottom:18px">Algorithms execute in pure JavaScript inside your browser — no server required. Results identical in shape to the C++ output.</p>
+      <div class="form-row">
+        <div><label>N (elements)</label>
+          <select id="cfg-n"><option value="100000">100,000</option><option value="500000" selected>500,000</option><option value="1000000">1,000,000</option><option value="2000000">2,000,000</option><option value="5000000">5,000,000</option></select>
+        </div>
+        <div><label>U (universe size)</label>
+          <select id="cfg-u"><option value="256">256</option><option value="1024" selected>1,024</option><option value="65536">65,536</option></select>
+        </div>
+        <div><label>Runs per case</label>
+          <select id="cfg-runs"><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option></select>
+        </div>
+        <div><label>Distributions</label>
+          <select id="cfg-dist" multiple size="5" style="min-width:180px">
+            <option value="uniform" selected>Uniform</option>
+            <option value="skewed" selected>Skewed 80/5</option>
+            <option value="sorted">Sorted</option>
+            <option value="reverse">Reverse</option>
+            <option value="nearly">Nearly sorted</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn btn-primary" id="btn-run"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg><span id="btn-run-label">Run Benchmark</span></button>
+        </div>
+      </div>
+      <div id="run-progress" style="display:none">
+        <div class="text-dim" style="font-size:.8rem;margin-bottom:6px"><span id="run-status">Initializing…</span><span style="float:right" id="run-pct">0%</span></div>
+        <div class="progress-bar"><div class="progress-fill" id="run-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Live Output</h2>
+      <div class="log" id="log-output">Ready. Click "Run Benchmark" to start.\n</div>
+    </div>
+  </section>
+
+  <!-- ═══ CHARTS VIEW ══════════════════════════════════ -->
+  <section class="view" id="view-charts">
+    <div class="card">
+      <div class="form-row">
+        <div><label>Distribution</label><select id="filter-dist"></select></div>
+        <div><label>Universe (U)</label><select id="filter-u"></select></div>
+        <div><label>Metric</label>
+          <select id="filter-metric">
+            <option value="median_ms">Median time (ms)</option>
+            <option value="throughput">Throughput (M keys/s)</option>
+            <option value="mem_kb">Memory (KB)</option>
+            <option value="stddev">Std deviation (ms)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="card"><h2>By Algorithm</h2><div class="chart-wrap"><canvas id="chart-bar"></canvas></div></div>
+      <div class="card"><h2>Scalability (N vs Throughput)</h2><div class="chart-wrap"><canvas id="chart-scale"></canvas></div></div>
+    </div>
+    <div class="card">
+      <h2>Heatmap: Algorithm × Distribution (median ms)</h2>
+      <div id="heatmap" style="overflow-x:auto"></div>
+    </div>
+  </section>
+
+  <!-- ═══ TABLE VIEW ══════════════════════════════════ -->
+  <section class="view" id="view-table">
+    <div class="card">
+      <div class="form-row">
+        <div><label>Algorithm</label><select id="tbl-filter-algo"><option value="all">All</option></select></div>
+        <div><label>Distribution</label><select id="tbl-filter-dist"><option value="all">All</option></select></div>
+        <div><label>Search</label><input type="text" id="tbl-search" placeholder="Type to filter…" style="min-width:200px"></div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="results-table">
+        <thead><tr>
+          <th>Algorithm</th><th>Distribution</th><th>N</th><th>U</th>
+          <th>Median ms</th><th>Mean ms</th><th>StdDev</th><th>Min ms</th>
+          <th>M keys/s</th><th>Mem KB</th><th>OK</th>
+        </tr></thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+      <div class="empty" id="tbl-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div>No results yet. Run a benchmark or import a CSV.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ BIG-O VIEW ═══════════════════════════════════ -->
+  <section class="view" id="view-bigo">
+    <div class="card">
+      <h2>Theoretical Complexity (Big-O)</h2>
+      <div class="table-wrap">
+        <table class="bigo-table">
+          <thead><tr><th>Algorithm</th><th>Best</th><th>Average</th><th>Worst</th><th>Space</th><th>Notes</th></tr></thead>
+          <tbody id="bigo-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Empirical vs Theoretical Growth (DialSort)</h2>
+      <p class="text-dim" style="font-size:.85rem;margin-bottom:12px">How well does measured time match the predicted O(n + U) curve?</p>
+      <div class="chart-wrap"><canvas id="chart-bigo"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ═══ IMPORT VIEW ══════════════════════════════════ -->
+  <section class="view" id="view-import">
+    <div class="card">
+      <h2>Import CSV from C++ Benchmark</h2>
+      <p class="text-dim" style="font-size:.85rem;margin-bottom:18px">Load <code>benchmark_results.csv</code> generated by <code>./dialsort_bench</code>. Drag and drop, or click to select.</p>
+      <div class="dropzone" id="dropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <strong>Drop CSV here</strong>
+        <span>or click to browse</span>
+        <input type="file" id="file-input" accept=".csv" style="display:none">
+      </div>
+      <div id="import-status" style="margin-top:14px;font-size:.85rem"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  STATE & CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════
+const state = { results: [], charts: {} };
+
+const ALGO_INFO = {
+  'DialSort':            {color:'#4ade80', big:{best:'O(n + U)',     avg:'O(n/p + U)',  worst:'O(n log n)', space:'O(p·U) or O(n)', notes:'Self-indexing, dispatched'}},
+  'Parallel RadixSort':  {color:'#22d3ee', big:{best:'O(d·n)',       avg:'O(d·n)',      worst:'O(d·n)',     space:'O(n + p·B)',     notes:'LSD base-256, 4 passes'}},
+  'Parallel MergeSort':  {color:'#a78bfa', big:{best:'O(n log n)',   avg:'O(n log n)',  worst:'O(n log n)', space:'O(n)',           notes:'Stable, std::thread tasks'}},
+  'Parallel SampleSort': {color:'#f59e0b', big:{best:'O(n log p)',   avg:'O(n log p)',  worst:'O(n log n)', space:'O(n + p²)',      notes:'Splitter-based partition'}},
+  'Parallel IntroSort':  {color:'#f87171', big:{best:'O(n log n)',   avg:'O(n log n)',  worst:'O(n log n)', space:'O(log n)',       notes:'QS+HS+IS hybrid'}},
+};
+
+const VIEW_TITLES = {
+  overview: ['Overview', 'Real-time benchmark dashboard'],
+  run:      ['Run Benchmark', 'Execute the 5 algorithms in your browser'],
+  charts:   ['Charts', 'Interactive comparative visualizations'],
+  table:    ['Full Results', 'Detailed per-case measurements'],
+  bigo:     ['Big-O Analysis', 'Theoretical complexity and empirical fit'],
+  import:   ['Import CSV', 'Load results from the C++ binary'],
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const v = item.dataset.view;
+    document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+    document.getElementById('view-' + v).classList.add('active');
+    document.getElementById('view-title').textContent = VIEW_TITLES[v][0];
+    document.getElementById('view-subtitle').textContent = VIEW_TITLES[v][1];
+    if (v === 'charts')   refreshCharts();
+    if (v === 'table')    refreshTable();
+    if (v === 'bigo')     refreshBigO();
+    if (v === 'overview') refreshOverview();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PRNG (deterministic)
+// ═══════════════════════════════════════════════════════════════════════════
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DATA GENERATORS
+// ═══════════════════════════════════════════════════════════════════════════
+function genUniform(n, U, seed) {
+  const r = mulberry32(seed);
+  const a = new Int32Array(n);
+  for (let i = 0; i < n; i++) a[i] = (r() * U) | 0;
+  return a;
+}
+function genSkewed(n, U, seed) {
+  const r = mulberry32(seed);
+  const top = Math.max(1, (U * 0.05) | 0);
+  const a = new Int32Array(n);
+  for (let i = 0; i < n; i++)
+    a[i] = (r() < 0.8) ? ((r() * top) | 0) : ((r() * U) | 0);
+  return a;
+}
+function genSorted(n, U, seed) {
+  const a = genUniform(n, U, seed);
+  return Int32Array.from(a).sort((x, y) => x - y);
+}
+function genReverse(n, U, seed) {
+  const a = genSorted(n, U, seed);
+  return a.reverse();
+}
+function genNearly(n, U, seed) {
+  const a = genSorted(n, U, seed);
+  const r = mulberry32(seed + 1);
+  const swaps = (n / 100) | 0;
+  for (let k = 0; k < swaps; k++) {
+    const i = (r() * n) | 0, j = (r() * n) | 0;
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+const GENERATORS = { uniform:genUniform, skewed:genSkewed, sorted:genSorted, reverse:genReverse, nearly:genNearly };
+const DIST_LABEL = { uniform:'Uniform', skewed:'Skewed-80-5', sorted:'Sorted', reverse:'Reverse', nearly:'Nearly-Sorted' };
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ALGORITHMS (JS ports — same logic as the C++ implementations)
+// ═══════════════════════════════════════════════════════════════════════════
+function dialsort(arr, U) {
+  const n = arr.length;
+  if (n <= 1) return;
+  let mn = arr[0], mx = arr[0];
+  for (let i = 1; i < n; i++) {
+    const x = arr[i]; if (x < mn) mn = x; if (x > mx) mx = x;
+  }
+  const range = mx - mn + 1;
+  if (range > 10_000_000) return dialsortRadix(arr);
+  const H = new Int32Array(range);
+  for (let i = 0; i < n; i++) H[arr[i] - mn]++;
+  let out = 0;
+  for (let y = 0; y < range; y++) {
+    const v = y + mn;
+    for (let c = H[y]; c > 0; c--) arr[out++] = v;
+  }
+}
+
+function dialsortRadix(arr) {
+  const n = arr.length;
+  if (n <= 1) return;
+  const buf = new Int32Array(n);
+  let src = arr, dst = buf;
+  for (let pass = 0; pass < 4; pass++) {
+    const sh = pass * 8;
+    const cnt = new Int32Array(256);
+    for (let i = 0; i < n; i++) {
+      const k = (src[i] ^ 0x80000000) >>> 0;
+      cnt[(k >>> sh) & 0xFF]++;
+    }
+    let sum = 0;
+    for (let i = 0; i < 256; i++) { const c = cnt[i]; cnt[i] = sum; sum += c; }
+    for (let i = 0; i < n; i++) {
+      const v = src[i];
+      const k = (v ^ 0x80000000) >>> 0;
+      dst[cnt[(k >>> sh) & 0xFF]++] = v;
+    }
+    const t = src; src = dst; dst = t;
+  }
+  if (src !== arr) for (let i = 0; i < n; i++) arr[i] = src[i];
+}
+
+function radixSort(arr) { dialsortRadix(arr); }
+
+function mergeSort(arr) {
+  const n = arr.length;
+  if (n <= 1) return;
+  const buf = new Int32Array(n);
+  for (let w = 1; w < n; w *= 2) {
+    for (let lo = 0; lo < n; lo += 2 * w) {
+      const mid = Math.min(lo + w, n), hi = Math.min(lo + 2 * w, n);
+      let i = lo, j = mid, k = lo;
+      while (i < mid && j < hi) buf[k++] = (arr[i] <= arr[j]) ? arr[i++] : arr[j++];
+      while (i < mid) buf[k++] = arr[i++];
+      while (j < hi)  buf[k++] = arr[j++];
+      for (let x = lo; x < hi; x++) arr[x] = buf[x];
+    }
+  }
+}
+
+function quickSort(a, lo, hi) {
+  if (lo >= hi) return;
+  const pivot = a[(lo + hi) >> 1];
+  let i = lo, j = hi;
+  while (i <= j) {
+    while (a[i] < pivot) i++;
+    while (a[j] > pivot) j--;
+    if (i <= j) { const t = a[i]; a[i] = a[j]; a[j] = t; i++; j--; }
+  }
+  if (lo < j) quickSort(a, lo, j);
+  if (i < hi) quickSort(a, i, hi);
+}
+
+function sampleSort(arr) {
+  const n = arr.length;
+  if (n <= 1) return;
+  const p = 8;
+  if (n < 1000) { quickSort(arr, 0, n - 1); return; }
+  const sample = new Int32Array(p * 10);
+  const r = mulberry32(7);
+  for (let i = 0; i < sample.length; i++) sample[i] = arr[(r() * n) | 0];
+  Array.prototype.sort.call(sample, (x, y) => x - y);
+  const splitters = new Int32Array(p - 1);
+  for (let i = 0; i < p - 1; i++) splitters[i] = sample[(i + 1) * 10];
+  const buckets = Array.from({length: p}, () => []);
+  for (let i = 0; i < n; i++) {
+    const x = arr[i];
+    let lo = 0, hi = p - 1;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (splitters[m] < x) lo = m + 1; else hi = m;
+    }
+    let b = lo; if (b < p - 1 && splitters[b] < x) b++;
+    buckets[b].push(x);
+  }
+  let pos = 0;
+  for (const b of buckets) {
+    b.sort((x, y) => x - y);
+    for (const v of b) arr[pos++] = v;
+  }
+}
+
+function introSort(arr) {
+  const a = Array.from(arr);
+  a.sort((x, y) => x - y);
+  for (let i = 0; i < arr.length; i++) arr[i] = a[i];
+}
+
+const ALGOS = [
+  { name: 'DialSort',            fn: dialsort   },
+  { name: 'Parallel RadixSort',  fn: radixSort  },
+  { name: 'Parallel MergeSort',  fn: mergeSort  },
+  { name: 'Parallel SampleSort', fn: sampleSort },
+  { name: 'Parallel IntroSort',  fn: introSort  },
+];
+
+function isSorted(a) {
+  for (let i = 1; i < a.length; i++) if (a[i] < a[i - 1]) return false;
+  return true;
+}
+
+function estimateMemKB(algo, n, U) {
+  const p = navigator.hardwareConcurrency || 4;
+  let bytes = 0;
+  switch (algo) {
+    case 'DialSort':
+      bytes = (U <= 10_000_000) ? (p + 1) * U * 4 : n * 4 + 1024;
+      break;
+    case 'Parallel RadixSort':  bytes = 2 * n * 4 + 256 * 4; break;
+    case 'Parallel MergeSort':  bytes = n * 4 / 2; break;
+    case 'Parallel SampleSort': bytes = n * 4 + p * p * 64 * 4; break;
+    case 'Parallel IntroSort':  bytes = p * 64 * 4; break;
+  }
+  return Math.round(bytes / 1024);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  BENCHMARK RUNNER
+// ═══════════════════════════════════════════════════════════════════════════
+function log(msg, cls = '') {
+  const el = document.getElementById('log-output');
+  el.innerHTML += (cls ? `<span class="${cls}">${msg}</span>` : msg) + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+function clearLog() { document.getElementById('log-output').innerHTML = ''; }
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function runBenchmark() {
+  const btn = document.getElementById('btn-run');
+  const lbl = document.getElementById('btn-run-label');
+  btn.disabled = true;
+  lbl.innerHTML = '<span class="spinner"></span> Running…';
+
+  const N = parseInt(document.getElementById('cfg-n').value);
+  const U = parseInt(document.getElementById('cfg-u').value);
+  const RUNS = parseInt(document.getElementById('cfg-runs').value);
+  const dists = Array.from(document.getElementById('cfg-dist').selectedOptions).map(o => o.value);
+
+  if (dists.length === 0) {
+    alert('Select at least one distribution');
+    btn.disabled = false; lbl.textContent = 'Run Benchmark'; return;
+  }
+
+  document.getElementById('run-progress').style.display = 'block';
+  clearLog();
+  log(`> Config:  N=${N.toLocaleString()}  U=${U}  runs=${RUNS}  dists=[${dists.join(', ')}]`, 'yellow');
+  log(`> Browser threads: ${navigator.hardwareConcurrency || 'unknown'}`, 'muted');
+  log(`> Note: JavaScript runs single-threaded; relative comparisons remain valid.\n`, 'muted');
+
+  const total = dists.length * ALGOS.length;
+  let done = 0;
+
+  for (const dist of dists) {
+    const base = GENERATORS[dist](N, U, 42);
+    log(`\n[${DIST_LABEL[dist]}] generated ${N.toLocaleString()} keys`, 'green');
+
+    for (const algo of ALGOS) {
+      document.getElementById('run-status').textContent = `${DIST_LABEL[dist]} · ${algo.name}`;
+
+      // warmup
+      const tmpW = new Int32Array(base); algo.fn(tmpW, U);
+
+      const times = [];
+      let correct = true;
+      for (let r = 0; r < RUNS; r++) {
+        const tmp = new Int32Array(base);
+        const t0 = performance.now();
+        algo.fn(tmp, U);
+        const t1 = performance.now();
+        times.push(t1 - t0);
+        if (r === 0) correct = isSorted(tmp);
+        await sleep(0);
+      }
+
+      times.sort((a, b) => a - b);
+      const median = times[(times.length / 2) | 0];
+      const mean   = times.reduce((s, x) => s + x, 0) / times.length;
+      const variance = times.reduce((s, x) => s + (x - mean) ** 2, 0) / times.length;
+      const stddev = Math.sqrt(variance);
+      const tput   = (N / (median / 1000)) / 1e6;
+      const memKb  = estimateMemKB(algo.name, N, U);
+
+      state.results.push({
+        algo: algo.name, dist: DIST_LABEL[dist], n: N, u: U,
+        median_ms: median, mean_ms: mean, stddev,
+        min_ms: times[0], throughput: tput, mem_kb: memKb, correct,
+      });
+
+      const tag = correct ? '<span class="green">OK</span>' : '<span class="red">FAIL</span>';
+      log(`    ${algo.name.padEnd(24)}  ${median.toFixed(2).padStart(8)} ms   ${tput.toFixed(1).padStart(7)} M/s   ${memKb.toString().padStart(6)} KB   ${tag}`);
+
+      done++;
+      const pct = ((done / total) * 100).toFixed(0);
+      document.getElementById('run-pct').textContent = pct + '%';
+      document.getElementById('run-fill').style.width = pct + '%';
+    }
+  }
+
+  log(`\n> Completed ${done} cases. ${state.results.length} total results.`, 'yellow');
+  btn.disabled = false; lbl.textContent = 'Run Benchmark';
+  document.getElementById('run-progress').style.display = 'none';
+  refreshOverview();
+  populateFilters();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CSV IMPORT / EXPORT
+// ═══════════════════════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+  const idx = h => headers.indexOf(h);
+  const out = [];
+  for (let i = 1; i < lines.length; i++) {
+    const row = []; let cur = ''; let inq = false;
+    for (const c of lines[i]) {
+      if (c === '"') inq = !inq;
+      else if (c === ',' && !inq) { row.push(cur); cur = ''; }
+      else cur += c;
+    }
+    row.push(cur);
+    const algo = (row[idx('algorithm')] || row[0] || '').replace(/^"|"$/g, '');
+    const dist = (row[idx('distribution')] || row[2] || '').replace(/^"|"$/g, '');
+    out.push({
+      algo, dist,
+      n: parseInt(row[idx('n')] || row[3]),
+      u: parseInt(row[idx('U')] || row[4]),
+      median_ms:  parseFloat(row[idx('median_ms')]),
+      mean_ms:    parseFloat(row[idx('mean_ms')]),
+      stddev:     parseFloat(row[idx('stddev_ms')]),
+      min_ms:     parseFloat(row[idx('min_ms')]),
+      throughput: parseFloat(row[idx('throughput_Mkeys_s')]),
+      mem_kb:     parseInt(row[idx('mem_kb')] || 0),
+      correct:    /^(true|si|yes|1)$/i.test((row[idx('correct')] || '').trim()),
+    });
+  }
+  return out.filter(r => !isNaN(r.median_ms));
+}
+
+function exportCSV() {
+  if (state.results.length === 0) { alert('No data to export'); return; }
+  const cols = ['algorithm','short_name','distribution','n','U','median_ms','mean_ms','stddev_ms','min_ms','max_ms','throughput_Mkeys_s','mem_kb','correct'];
+  const rows = [cols.join(',')];
+  for (const r of state.results) {
+    rows.push([
+      `"${r.algo}"`, `"${r.algo}"`, `"${r.dist}"`, r.n, r.u,
+      r.median_ms.toFixed(3), r.mean_ms.toFixed(3),
+      r.stddev.toFixed(3), r.min_ms.toFixed(3), r.median_ms.toFixed(3),
+      r.throughput.toFixed(3), r.mem_kb, r.correct ? 'true' : 'false'
+    ].join(','));
+  }
+  const blob = new Blob([rows.join('\n')], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'dialsort_results.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  REFRESH FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+function populateFilters() {
+  const dists = [...new Set(state.results.map(r => r.dist))];
+  const us    = [...new Set(state.results.map(r => r.u))].sort((a, b) => a - b);
+  const algos = [...new Set(state.results.map(r => r.algo))];
+  const fill = (id, vals, allOpt) => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = (allOpt ? '<option value="all">All</option>' : '') +
+                    vals.map(v => `<option value="${v}">${v}</option>`).join('');
+    if (vals.includes(cur) || cur === 'all') sel.value = cur;
+  };
+  fill('filter-dist', dists, false);
+  fill('filter-u', us, false);
+  fill('tbl-filter-algo', algos, true);
+  fill('tbl-filter-dist', dists, true);
+}
+
+function refreshOverview() {
+  document.getElementById('stat-runs').textContent = state.results.length;
+  if (state.results.length === 0) {
+    document.getElementById('stat-best-tput').textContent = '—';
+    document.getElementById('stat-best-algo').textContent = 'No data yet';
+    document.getElementById('stat-speedup').textContent = '—';
+    if (state.charts.overview) { state.charts.overview.destroy(); state.charts.overview = null; }
+    return;
+  }
+  const valid = state.results.filter(r => r.correct);
+  if (valid.length === 0) return;
+  const best = valid.reduce((a, b) => a.throughput > b.throughput ? a : b);
+  document.getElementById('stat-best-tput').textContent = best.throughput.toFixed(1) + ' M/s';
+  document.getElementById('stat-best-algo').textContent = best.algo;
+
+  const uniform = valid.filter(r => r.dist === 'Uniform');
+  if (uniform.length > 1) {
+    const dial = uniform.find(r => r.algo === 'DialSort');
+    const slowest = uniform.reduce((a, b) => a.median_ms > b.median_ms ? a : b);
+    if (dial && slowest && dial !== slowest)
+      document.getElementById('stat-speedup').textContent =
+        (slowest.median_ms / dial.median_ms).toFixed(1) + '×';
+  }
+
+  if (state.charts.overview) state.charts.overview.destroy();
+  const samples = uniform.length ? uniform : valid;
+  const maxN = Math.max(...samples.map(r => r.n));
+  const filt = samples.filter(r => r.n === maxN);
+  const algos = [...new Set(filt.map(r => r.algo))];
+  const data = algos.map(a => filt.find(r => r.algo === a)?.median_ms || 0);
+  const colors = algos.map(a => ALGO_INFO[a]?.color || '#888');
+
+  state.charts.overview = new Chart(document.getElementById('chart-overview'), {
+    type: 'bar',
+    data: { labels: algos, datasets: [{
+      label: 'Median ms', data,
+      backgroundColor: colors.map(c => c + 'cc'),
+      borderColor: colors, borderWidth: 1 }] },
+    options: chartOpts(`Median time at N=${maxN.toLocaleString()}`, 'ms')
+  });
+}
+
+function refreshCharts() {
+  if (state.results.length === 0) return;
+  populateFilters();
+  const dist = document.getElementById('filter-dist').value;
+  const u = parseInt(document.getElementById('filter-u').value);
+  const metric = document.getElementById('filter-metric').value;
+  const filtered = state.results.filter(r => r.dist === dist && r.u === u);
+  const algos = [...new Set(filtered.map(r => r.algo))];
+  const ns = [...new Set(filtered.map(r => r.n))].sort((a, b) => a - b);
+
+  if (state.charts.bar) state.charts.bar.destroy();
+  const maxN = ns[ns.length - 1] || 0;
+  const barData = algos.map(a => {
+    const r = filtered.find(x => x.algo === a && x.n === maxN);
+    return r ? r[metric] : 0;
+  });
+  state.charts.bar = new Chart(document.getElementById('chart-bar'), {
+    type: 'bar',
+    data: { labels: algos, datasets: [{
+      label: metric, data: barData,
+      backgroundColor: algos.map(a => (ALGO_INFO[a]?.color || '#888') + 'cc'),
+      borderColor: algos.map(a => ALGO_INFO[a]?.color || '#888'),
+      borderWidth: 1 }] },
+    options: chartOpts(`${metric} at N=${maxN.toLocaleString()}`,
+      metric.includes('throughput') ? 'M keys/s' : metric.includes('mem') ? 'KB' : 'ms')
+  });
+
+  if (state.charts.scale) state.charts.scale.destroy();
+  const datasets = algos.map(a => {
+    const data = ns.map(n => {
+      const r = filtered.find(x => x.algo === a && x.n === n);
+      return r ? r[metric] : null;
+    });
+    const c = ALGO_INFO[a]?.color || '#888';
+    return { label: a, data, borderColor: c, backgroundColor: c + '33',
+             tension: 0.3, fill: false, pointRadius: 5, pointHoverRadius: 7 };
+  });
+  state.charts.scale = new Chart(document.getElementById('chart-scale'), {
+    type: 'line',
+    data: { labels: ns.map(n => n >= 1e6 ? (n/1e6)+'M' : (n/1e3)+'K'), datasets },
+    options: chartOpts('Scalability',
+      metric.includes('throughput') ? 'M keys/s' : metric.includes('mem') ? 'KB' : 'ms')
+  });
+
+  buildHeatmap();
+}
+
+function buildHeatmap() {
+  const valid = state.results.filter(r => r.correct);
+  const algos = [...new Set(valid.map(r => r.algo))];
+  const dists = [...new Set(valid.map(r => r.dist))];
+  const cells = {};
+  for (const a of algos) for (const d of dists) {
+    const matches = valid.filter(r => r.algo === a && r.dist === d);
+    if (matches.length) {
+      const maxN = Math.max(...matches.map(r => r.n));
+      cells[a + '|' + d] = matches.find(r => r.n === maxN);
+    }
+  }
+  if (Object.keys(cells).length === 0) {
+    document.getElementById('heatmap').innerHTML = '<div class="empty">No data to display.</div>';
+    return;
+  }
+  const all = Object.values(cells).map(c => c.median_ms);
+  const min = Math.min(...all), max = Math.max(...all);
+  const heatColor = v => {
+    const t = (v - min) / Math.max(0.001, max - min);
+    const r = (t * 255) | 0, g = ((1 - t) * 200) | 0;
+    return `rgb(${r},${g},80)`;
+  };
+  let html = '<table style="margin:0"><thead><tr><th>Algorithm</th>';
+  for (const d of dists) html += `<th>${d}</th>`;
+  html += '</tr></thead><tbody>';
+  for (const a of algos) {
+    const isDial = a === 'DialSort';
+    html += `<tr${isDial ? ' class="dial-row"' : ''}><td>${a}</td>`;
+    for (const d of dists) {
+      const c = cells[a + '|' + d];
+      if (c) html += `<td style="background:${heatColor(c.median_ms)}33;color:#fff;font-weight:600">${c.median_ms.toFixed(2)} ms</td>`;
+      else   html += `<td class="text-dim">—</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  document.getElementById('heatmap').innerHTML = html;
+}
+
+function refreshTable() {
+  populateFilters();
+  const filtA = document.getElementById('tbl-filter-algo').value;
+  const filtD = document.getElementById('tbl-filter-dist').value;
+  const search = document.getElementById('tbl-search').value.toLowerCase();
+  const tbody = document.getElementById('tbl-body');
+  const empty = document.getElementById('tbl-empty');
+
+  let rows = state.results.slice();
+  if (filtA !== 'all') rows = rows.filter(r => r.algo === filtA);
+  if (filtD !== 'all') rows = rows.filter(r => r.dist === filtD);
+  if (search) rows = rows.filter(r => (r.algo + r.dist + r.n + r.u).toLowerCase().includes(search));
+
+  if (rows.length === 0) {
+    tbody.innerHTML = ''; empty.style.display = 'block'; return;
+  }
+  empty.style.display = 'none';
+
+  const bestMap = {};
+  for (const r of rows) {
+    const key = r.n + '|' + r.u + '|' + r.dist;
+    if (!bestMap[key] || r.median_ms < bestMap[key].median_ms) bestMap[key] = r;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const key = r.n + '|' + r.u + '|' + r.dist;
+    const isBest = bestMap[key] === r;
+    const cls = (r.algo === 'DialSort') ? 'dial-row' : '';
+    const ok = r.correct ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-err">FAIL</span>';
+    return `<tr class="${cls}">
+      <td>${r.algo}</td><td>${r.dist}</td>
+      <td>${r.n.toLocaleString()}</td><td>${r.u.toLocaleString()}</td>
+      <td class="${isBest ? 'cell-best' : ''}">${r.median_ms.toFixed(3)}</td>
+      <td>${r.mean_ms.toFixed(3)}</td>
+      <td>${r.stddev.toFixed(3)}</td>
+      <td>${r.min_ms.toFixed(3)}</td>
+      <td>${r.throughput.toFixed(2)}</td>
+      <td>${r.mem_kb.toLocaleString()}</td>
+      <td>${ok}</td>
+    </tr>`;
+  }).join('');
+}
+
+function refreshBigO() {
+  const tbody = document.getElementById('bigo-body');
+  tbody.innerHTML = Object.entries(ALGO_INFO).map(([name, info]) => {
+    const isDial = name === 'DialSort';
+    return `<tr class="${isDial ? 'dial-row' : ''}">
+      <td>${name}</td><td>${info.big.best}</td><td>${info.big.avg}</td>
+      <td>${info.big.worst}</td><td>${info.big.space}</td>
+      <td class="text-dim">${info.big.notes}</td>
+    </tr>`;
+  }).join('');
+
+  const dial = state.results.filter(r => r.algo === 'DialSort' && r.dist === 'Uniform');
+  if (dial.length < 2) {
+    if (state.charts.bigo) { state.charts.bigo.destroy(); state.charts.bigo = null; }
+    return;
+  }
+  dial.sort((a, b) => a.n - b.n);
+  if (state.charts.bigo) state.charts.bigo.destroy();
+  const lastN = dial[dial.length - 1].n;
+  const lastT = dial[dial.length - 1].median_ms;
+  state.charts.bigo = new Chart(document.getElementById('chart-bigo'), {
+    type: 'line',
+    data: {
+      labels: dial.map(r => r.n.toLocaleString()),
+      datasets: [
+        { label: 'Measured (median ms)', data: dial.map(r => r.median_ms),
+          borderColor: '#4ade80', backgroundColor: '#4ade8033',
+          tension: 0.2, pointRadius: 6 },
+        { label: 'Theoretical O(n) (scaled)', data: dial.map(r => r.n / lastN * lastT),
+          borderColor: '#22d3ee', borderDash: [6, 4], backgroundColor: 'transparent',
+          tension: 0, pointRadius: 4 }
+      ]
+    },
+    options: chartOpts('Empirical vs theoretical', 'ms')
+  });
+}
+
+function chartOpts(title, yLabel) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#e6eaf2', font: { size: 11 } } },
+      title: { display: !!title, text: title, color: '#8b95a8', font: { size: 12, weight: '500' } },
+      tooltip: { backgroundColor: '#161b27', borderColor: '#252c3d', borderWidth: 1 }
+    },
+    scales: {
+      x: { ticks: { color: '#8b95a8' }, grid: { color: '#252c3d' } },
+      y: { ticks: { color: '#8b95a8' }, grid: { color: '#252c3d' },
+           title: { display: true, text: yLabel, color: '#8b95a8' } }
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CSV IMPORT (drag & drop + click)
+// ═══════════════════════════════════════════════════════════════════════════
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+const importStat = document.getElementById('import-status');
+dropzone.addEventListener('click', () => fileInput.click());
+['dragenter','dragover'].forEach(e => dropzone.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.add('over'); }));
+['dragleave','drop'].forEach(e => dropzone.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.remove('over'); }));
+dropzone.addEventListener('drop', ev => { if (ev.dataTransfer.files[0]) loadFile(ev.dataTransfer.files[0]); });
+fileInput.addEventListener('change', ev => { if (ev.target.files[0]) loadFile(ev.target.files[0]); });
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = parseCSV(e.target.result);
+      if (parsed.length === 0) {
+        importStat.innerHTML = '<span class="badge badge-err">ERROR</span> No valid rows found in CSV';
+        return;
+      }
+      state.results = parsed;
+      importStat.innerHTML = `<span class="badge badge-ok">SUCCESS</span> Loaded ${parsed.length} rows from <strong>${file.name}</strong>`;
+      refreshOverview();
+      populateFilters();
+    } catch (err) {
+      importStat.innerHTML = `<span class="badge badge-err">ERROR</span> ${err.message}`;
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  EVENT WIRING & INIT
+// ═══════════════════════════════════════════════════════════════════════════
+document.getElementById('btn-run').addEventListener('click', runBenchmark);
+document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (confirm('Clear all results?')) {
+    state.results = [];
+    Object.values(state.charts).forEach(c => c?.destroy());
+    state.charts = {};
+    refreshOverview();
+    refreshTable();
+    refreshBigO();
+    document.getElementById('heatmap').innerHTML = '';
+  }
+});
+['filter-dist','filter-u','filter-metric'].forEach(id =>
+  document.getElementById(id).addEventListener('change', refreshCharts));
+['tbl-filter-algo','tbl-filter-dist','tbl-search'].forEach(id =>
+  document.getElementById(id).addEventListener('input', refreshTable));
+
+refreshOverview();
+refreshBigO();
+log('Dashboard ready. Run a benchmark or import a CSV to begin.', 'muted');
+</script>
+</body>
+</html>
+
+  <!-- ═══ OVERVIEW ═══════════════════════════════════════ -->
+  <section class="view active" id="view-overview">
+    <div class="stats-grid">
+      <div class="stat dial">
+        <div class="stat-label">Algorithms</div>
+        <div class="stat-value">5</div>
+        <div class="stat-meta">DialSort + 4 parallel</div>
+      </div>
+      <div class="stat cyan">
+        <div class="stat-label">Total Cases</div>
+        <div class="stat-value" id="stat-runs">0</div>
+        <div class="stat-meta">Across all configurations</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Best Throughput</div>
+        <div class="stat-value" id="stat-best-tput">—</div>
+        <div class="stat-meta" id="stat-best-algo">No data yet</div>
+      </div>
+      <div class="stat warn">
+        <div class="stat-label">DialSort Speedup</div>
+        <div class="stat-value" id="stat-speedup">—</div>
+        <div class="stat-meta">vs slowest competitor</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quick Start</h2>
+      <p class="text-dim" style="line-height:1.7;font-size:.9rem">Three ways to use this dashboard:</p>
+      <ol style="margin:14px 0 0 20px;line-height:1.9;font-size:.9rem">
+        <li>Click <strong class="text-dial">Run Benchmark</strong> to execute the 5 algorithms in your browser using JavaScript.</li>
+        <li>Click <strong>Import CSV</strong> to load <code>benchmark_results.csv</code> generated by the C++ binary.</li>
+        <li>Once loaded, all other views populate automatically.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Top Performers (Median ms — lower is better)</h2>
+      <div class="chart-wrap"><canvas id="chart-overview"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ═══ RUN ═══════════════════════════════════════════ -->
+  <section class="view" id="view-run">
+    <div class="card">
+      <h2>Live Benchmark Configuration</h2>
+      <p class="text-dim" style="font-size:.85rem;margin-bottom:18px">
+        Algorithms execute in pure JavaScript inside your browser — no server required.
+        For maximum performance, run the C++ binary and import its CSV.
+      </p>
+      <div class="form-row">
+        <div>
+          <label>N (elements)</label>
+          <select id="cfg-n">
+            <option value="100000">100,000</option>
+            <option value="500000" selected>500,000</option>
+            <option value="1000000">1,000,000</option>
+            <option value="2000000">2,000,000</option>
+            <option value="5000000">5,000,000</option>
+          </select>
+        </div>
+        <div>
+          <label>U (universe)</label>
+          <select id="cfg-u">
+            <option value="256">256</option>
+            <option value="1024" selected>1,024</option>
+            <option value="65536">65,536</option>
+          </select>
+        </div>
+        <div>
+          <label>Runs/case</label>
+          <select id="cfg-runs">
+            <option value="3" selected>3</option>
+            <option value="5">5</option>
+            <option value="7">7</option>
+          </select>
+        </div>
+        <div>
+          <label>Distributions</label>
+          <select id="cfg-dist" multiple size="5" style="min-width:180px">
+            <option value="uniform" selected>Uniform</option>
+            <option value="skewed" selected>Skewed 80/5</option>
+            <option value="sorted">Sorted</option>
+            <option value="reverse">Reverse</option>
+            <option value="nearly">Nearly sorted</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn btn-primary" id="btn-run">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span id="btn-run-label">Run Benchmark</span>
+          </button>
+        </div>
+      </div>
+      <div id="run-progress" style="display:none">
+        <div class="text-dim" style="font-size:.8rem;margin-bottom:6px">
+          <span id="run-status">Initializing…</span>
+          <span style="float:right" id="run-pct">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="run-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Live Output</h2>
+      <div class="log" id="log-output">Ready. Click "Run Benchmark" to start.</div>
+    </div>
+  </section>
+
+  <!-- ═══ CHARTS ════════════════════════════════════════ -->
+  <section class="view" id="view-charts">
+    <div class="card">
+      <div class="form-row">
+        <div><label>Distribution</label><select id="filter-dist"></select></div>
+        <div><label>Universe (U)</label><select id="filter-u"></select></div>
+        <div>
+          <label>Metric</label>
+          <select id="filter-metric">
+            <option value="median_ms">Median time (ms)</option>
+            <option value="throughput">Throughput (M keys/s)</option>
+            <option value="mem_kb">Memory (KB)</option>
+            <option value="stddev">Std deviation (ms)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="card">
+        <h2>By Algorithm</h2>
+        <div class="chart-wrap"><canvas id="chart-bar"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Scalability — N vs metric</h2>
+        <div class="chart-wrap"><canvas id="chart-scale"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Heatmap — Algorithm × Distribution (median ms)</h2>
+      <div id="heatmap" style="overflow-x:auto"></div>
+    </div>
+  </section>
+
+  <!-- ═══ TABLE ═════════════════════════════════════════ -->
+  <section class="view" id="view-table">
+    <div class="card">
+      <div class="form-row">
+        <div><label>Algorithm</label><select id="tbl-filter-algo"><option value="all">All</option></select></div>
+        <div><label>Distribution</label><select id="tbl-filter-dist"><option value="all">All</option></select></div>
+        <div><label>Search</label><input type="text" id="tbl-search" placeholder="Type to filter…" style="min-width:200px"></div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="results-table">
+        <thead><tr>
+          <th>Algorithm</th><th>Distribution</th><th>N</th><th>U</th>
+          <th>Median ms</th><th>Mean ms</th><th>StdDev</th><th>Min ms</th>
+          <th>M keys/s</th><th>Mem KB</th><th>OK</th>
+        </tr></thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+      <div class="empty" id="tbl-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div>No results yet. Run a benchmark or import a CSV.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ BIG-O ══════════════════════════════════════════ -->
+  <section class="view" id="view-bigo">
+    <div class="card">
+      <h2>Theoretical Complexity</h2>
+      <div class="table-wrap">
+        <table class="bigo-table">
+          <thead><tr><th>Algorithm</th><th>Best</th><th>Average</th><th>Worst</th><th>Space</th><th>Notes</th></tr></thead>
+          <tbody id="bigo-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>DialSort: Empirical vs Theoretical Growth</h2>
+      <p class="text-dim" style="font-size:.85rem;margin-bottom:12px">How well does measured time match the predicted O(n + U) curve?</p>
+      <div class="chart-wrap"><canvas id="chart-bigo"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ═══ IMPORT ════════════════════════════════════════ -->
+  <section class="view" id="view-import">
+    <div class="card">
+      <h2>Import CSV from C++ Benchmark</h2>
+      <p class="text-dim" style="font-size:.85rem;margin-bottom:18px">
+        Load <code>benchmark_results.csv</code> generated by <code>./dialsort_bench</code>.
+        Drag and drop, or click to browse.
+      </p>
+      <div class="dropzone" id="dropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <strong>Drop CSV here</strong>
+        <span>or click to browse</span>
+        <input type="file" id="file-input" accept=".csv" style="display:none">
+      </div>
+      <div id="import-status" style="margin-top:14px;font-size:.85rem"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  STATE & CONFIG
+// ═══════════════════════════════════════════════════════════════════════════
+const state = { results: [], charts: {} };
+
+const ALGO_INFO = {
+  'DialSort':            {color:'#4ade80', big:{best:'O(n + U)',     avg:'O(n/p + U)',  worst:'O(n log n)', space:'O(p·U) or O(n)', notes:'Self-indexing; auto-strategy'}},
+  'Parallel RadixSort':  {color:'#22d3ee', big:{best:'O(d·n)',       avg:'O(d·n)',      worst:'O(d·n)',     space:'O(n + p·B)',     notes:'LSD base-256, 4 passes'}},
+  'Parallel MergeSort':  {color:'#a78bfa', big:{best:'O(n log n)',   avg:'O(n log n)',  worst:'O(n log n)', space:'O(n)',           notes:'Stable, std::thread'}},
+  'Parallel SampleSort': {color:'#f59e0b', big:{best:'O(n log p)',   avg:'O(n log p)',  worst:'O(n log n)', space:'O(n + p²)',      notes:'Splitter partition'}},
+  'Parallel IntroSort':  {color:'#f87171', big:{best:'O(n log n)',   avg:'O(n log n)',  worst:'O(n log n)', space:'O(log n)',       notes:'QS+HS+IS hybrid'}},
+};
+
+const VIEW_TITLES = {
+  overview: ['Overview', 'Real-time benchmark dashboard'],
+  run:      ['Run Benchmark', 'Execute the 5 algorithms in your browser'],
+  charts:   ['Charts', 'Interactive comparative visualizations'],
+  table:    ['Full Results', 'Detailed per-case measurements'],
+  bigo:     ['Big-O Analysis', 'Theoretical complexity and empirical fit'],
+  import:   ['Import CSV', 'Load results from the C++ binary'],
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const v = item.dataset.view;
+    document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+    document.getElementById('view-' + v).classList.add('active');
+    document.getElementById('view-title').textContent = VIEW_TITLES[v][0];
+    document.getElementById('view-subtitle').textContent = VIEW_TITLES[v][1];
+    if (v === 'charts')   refreshCharts();
+    if (v === 'table')    refreshTable();
+    if (v === 'bigo')     refreshBigO();
+    if (v === 'overview') refreshOverview();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PRNG (deterministic, Mulberry32)
+// ═══════════════════════════════════════════════════════════════════════════
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DATA GENERATORS
+// ═══════════════════════════════════════════════════════════════════════════
+function genUniform(n, U, seed) {
+  const r = mulberry32(seed); const a = new Int32Array(n);
+  for (let i = 0; i < n; i++) a[i] = (r() * U) | 0;
+  return a;
+}
+function genSkewed(n, U, seed) {
+  const r = mulberry32(seed); const top = Math.max(1, (U * 0.05) | 0);
+  const a = new Int32Array(n);
+  for (let i = 0; i < n; i++) a[i] = (r() < 0.8) ? ((r() * top) | 0) : ((r() * U) | 0);
+  return a;
+}
+function genSorted(n, U, seed) {
+  const a = genUniform(n, U, seed); a.sort(); return a;
+}
+function genReverse(n, U, seed) {
+  const a = genSorted(n, U, seed); return a.reverse();
+}
+function genNearly(n, U, seed) {
+  const a = genSorted(n, U, seed); const r = mulberry32(seed + 1);
+  const swaps = (n / 100) | 0;
+  for (let k = 0; k < swaps; k++) {
+    const i = (r() * n) | 0, j = (r() * n) | 0;
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+const GENERATORS = { uniform: genUniform, skewed: genSkewed, sorted: genSorted, reverse: genReverse, nearly: genNearly };
+const DIST_LABEL = { uniform:'Uniform', skewed:'Skewed-80-5', sorted:'Sorted', reverse:'Reverse', nearly:'Nearly-Sorted' };
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ALGORITHMS (JavaScript ports — same logic as C++)
+// ═══════════════════════════════════════════════════════════════════════════
+function dialsort(arr, U) {
+  const n = arr.length; if (n <= 1) return;
+  let mn = arr[0], mx = arr[0];
+  for (let i = 1; i < n; i++) {
+    const x = arr[i]; if (x < mn) mn = x; if (x > mx) mx = x;
+  }
+  const range = mx - mn + 1;
+  if (range > 10_000_000) return dialsortRadix(arr);
+  const H = new Int32Array(range);
+  for (let i = 0; i < n; i++) H[arr[i] - mn]++;
+  let out = 0;
+  for (let y = 0; y < range; y++) {
+    const v = y + mn;
+    for (let c = H[y]; c > 0; c--) arr[out++] = v;
+  }
+}
+
+function dialsortRadix(arr) {
+  const n = arr.length; if (n <= 1) return;
+  const buf = new Int32Array(n); let src = arr, dst = buf;
+  for (let pass = 0; pass < 4; pass++) {
+    const sh = pass * 8; const cnt = new Int32Array(256);
+    for (let i = 0; i < n; i++) {
+      const k = (src[i] ^ 0x80000000) >>> 0;
+      cnt[(k >>> sh) & 0xFF]++;
+    }
+    let sum = 0;
+    for (let i = 0; i < 256; i++) { const c = cnt[i]; cnt[i] = sum; sum += c; }
+    for (let i = 0; i < n; i++) {
+      const v = src[i]; const k = (v ^ 0x80000000) >>> 0;
+      dst[cnt[(k >>> sh) & 0xFF]++] = v;
+    }
+    const t = src; src = dst; dst = t;
+  }
+  if (src !== arr) for (let i = 0; i < n; i++) arr[i] = src[i];
+}
+
+function radixSort(arr) { dialsortRadix(arr); }
+
+function mergeSort(arr) {
+  const n = arr.length; if (n <= 1) return;
+  const buf = new Int32Array(n);
+  for (let w = 1; w < n; w *= 2) {
+    for (let lo = 0; lo < n; lo += 2 * w) {
+      const mid = Math.min(lo + w, n), hi = Math.min(lo + 2 * w, n);
+      let i = lo, j = mid, k = lo;
+      while (i < mid && j < hi) buf[k++] = (arr[i] <= arr[j]) ? arr[i++] : arr[j++];
+      while (i < mid) buf[k++] = arr[i++];
+      while (j < hi)  buf[k++] = arr[j++];
+      for (let x = lo; x < hi; x++) arr[x] = buf[x];
+    }
+  }
+}
+
+function sampleSort(arr) {
+  const n = arr.length; if (n <= 1) return;
+  const p = 8;
+  if (n < 1000) { introSort(arr); return; }
+  const sample = new Int32Array(p * 10); const r = mulberry32(7);
+  for (let i = 0; i < sample.length; i++) sample[i] = arr[(r() * n) | 0];
+  Array.prototype.sort.call(sample, (x, y) => x - y);
+  const splitters = new Int32Array(p - 1);
+  for (let i = 0; i < p - 1; i++) splitters[i] = sample[(i + 1) * 10];
+  const buckets = Array.from({length: p}, () => []);
+  for (let i = 0; i < n; i++) {
+    const x = arr[i]; let lo = 0, hi = p - 1;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (splitters[m] < x) lo = m + 1; else hi = m;
+    }
+    let b = lo; if (b < p - 1 && splitters[b] < x) b++;
+    buckets[b].push(x);
+  }
+  let pos = 0;
+  for (const b of buckets) {
+    b.sort((x, y) => x - y);
+    for (const v of b) arr[pos++] = v;
+  }
+}
+
+function introSort(arr) {
+  const a = Array.from(arr); a.sort((x, y) => x - y);
+  for (let i = 0; i < arr.length; i++) arr[i] = a[i];
+}
+
+const ALGOS = [
+  { name: 'DialSort',            fn: dialsort   },
+  { name: 'Parallel RadixSort',  fn: radixSort  },
+  { name: 'Parallel MergeSort',  fn: mergeSort  },
+  { name: 'Parallel SampleSort', fn: sampleSort },
+  { name: 'Parallel IntroSort',  fn: introSort  },
+];
+
+function isSorted(a) {
+  for (let i = 1; i < a.length; i++) if (a[i] < a[i - 1]) return false;
+  return true;
+}
+
+function estimateMemKB(algo, n, U) {
+  const p = navigator.hardwareConcurrency || 4;
+  let bytes = 0;
+  switch (algo) {
+    case 'DialSort':
+      bytes = (U <= 10_000_000) ? (p + 1) * U * 4 : n * 4 + 1024; break;
+    case 'Parallel RadixSort':  bytes = 2 * n * 4 + 256 * 4; break;
+    case 'Parallel MergeSort':  bytes = n * 4 / 2; break;
+    case 'Parallel SampleSort': bytes = n * 4 + p * p * 64 * 4; break;
+    case 'Parallel IntroSort':  bytes = p * 64 * 4; break;
+  }
+  return Math.round(bytes / 1024);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  BENCHMARK RUNNER
+// ═══════════════════════════════════════════════════════════════════════════
+function log(msg, cls = '') {
+  const el = document.getElementById('log-output');
+  const span = cls ? `<span class="${cls}">${msg}</span>` : msg;
+  el.innerHTML += span + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+function clearLog() { document.getElementById('log-output').innerHTML = ''; }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function runBenchmark() {
+  const btn = document.getElementById('btn-run');
+  const lbl = document.getElementById('btn-run-label');
+  btn.disabled = true;
+  lbl.innerHTML = '<span class="spinner"></span> Running…';
+
+  const N    = parseInt(document.getElementById('cfg-n').value);
+  const U    = parseInt(document.getElementById('cfg-u').value);
+  const RUNS = parseInt(document.getElementById('cfg-runs').value);
+  const dists = Array.from(document.getElementById('cfg-dist').selectedOptions).map(o => o.value);
+
+  if (dists.length === 0) {
+    alert('Select at least one distribution');
+    btn.disabled = false; lbl.textContent = 'Run Benchmark'; return;
+  }
+
+  document.getElementById('run-progress').style.display = 'block';
+  clearLog();
+  log(`> Config: N=${N.toLocaleString()}  U=${U}  runs=${RUNS}  dists=[${dists.join(', ')}]`, 'yellow');
+  log(`> Browser threads: ${navigator.hardwareConcurrency || 'unknown'}`, 'muted');
+  log(`> Note: JS is single-threaded. For multi-thread benchmarks use the C++ binary.`, 'muted');
+  log('');
+
+  const total = dists.length * ALGOS.length; let done = 0;
+
+  for (const dist of dists) {
+    const base = GENERATORS[dist](N, U, 42);
+    log(`[${DIST_LABEL[dist]}] generated ${N.toLocaleString()} keys`, 'green');
+
+    for (const algo of ALGOS) {
+      document.getElementById('run-status').textContent = `${DIST_LABEL[dist]} · ${algo.name}`;
+
+      const times = []; let correct = true;
+      // Warmup
+      const tmp0 = new Int32Array(base); algo.fn(tmp0, U);
+
+      for (let r = 0; r < RUNS; r++) {
+        const tmp = new Int32Array(base);
+        const t0 = performance.now();
+        algo.fn(tmp, U);
+        const t1 = performance.now();
+        times.push(t1 - t0);
+        if (r === 0) correct = isSorted(tmp);
+        await sleep(0);
+      }
+
+      times.sort((a, b) => a - b);
+      const median = times[(times.length / 2) | 0];
+      const mean   = times.reduce((s, x) => s + x, 0) / times.length;
+      const variance = times.reduce((s, x) => s + (x - mean) ** 2, 0) / times.length;
+      const stddev  = Math.sqrt(variance);
+      const minMs   = times[0];
+      const tput    = (N / (median / 1000)) / 1e6;
+      const memKb   = estimateMemKB(algo.name, N, U);
+
+      state.results.push({
+        algo: algo.name, dist: DIST_LABEL[dist], n: N, u: U,
+        median_ms: median, mean_ms: mean, stddev: stddev,
+        min_ms: minMs, throughput: tput, mem_kb: memKb, correct,
+      });
+
+      const tag = correct ? '<span class="green">OK</span>' : '<span class="red">FAIL</span>';
+      log(`    ${algo.name.padEnd(24)}  ${median.toFixed(2).padStart(8)} ms   ${tput.toFixed(1).padStart(7)} M/s   ${memKb.toString().padStart(6)} KB   ${tag}`);
+
+      done++;
+      const pct = ((done / total) * 100).toFixed(0);
+      document.getElementById('run-pct').textContent = pct + '%';
+      document.getElementById('run-fill').style.width = pct + '%';
+    }
+  }
+
+  log(`\n> Completed ${done} cases. ${state.results.length} total results in memory.`, 'yellow');
+  btn.disabled = false; lbl.textContent = 'Run Benchmark';
+  document.getElementById('run-progress').style.display = 'none';
+
+  refreshOverview(); populateFilters();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CSV IMPORT / EXPORT
+// ═══════════════════════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+  const idx = h => headers.indexOf(h);
+  const out = [];
+  for (let i = 1; i < lines.length; i++) {
+    const row = []; let cur = ''; let inq = false;
+    for (const c of lines[i]) {
+      if (c === '"') inq = !inq;
+      else if (c === ',' && !inq) { row.push(cur); cur = ''; }
+      else cur += c;
+    }
+    row.push(cur);
+    out.push({
+      algo:       row[idx('algorithm')] || row[0],
+      dist:       row[idx('distribution')] || row[2],
+      n:          parseInt(row[idx('n')] || row[3]),
+      u:          parseInt(row[idx('U')] || row[4]),
+      median_ms:  parseFloat(row[idx('median_ms')]),
+      mean_ms:    parseFloat(row[idx('mean_ms')]),
+      stddev:     parseFloat(row[idx('stddev_ms')]),
+      min_ms:     parseFloat(row[idx('min_ms')]),
+      throughput: parseFloat(row[idx('throughput_Mkeys_s')]),
+      mem_kb:     parseInt(row[idx('mem_kb')] || 0),
+      correct:    (row[idx('correct')] || 'true').toLowerCase().includes('t') ||
+                  (row[idx('correct')] || '').toUpperCase() === 'SI',
+    });
+  }
+  return out.filter(r => !isNaN(r.median_ms));
+}
+
+function exportCSV() {
+  if (state.results.length === 0) { alert('No data to export'); return; }
+  const cols = ['algorithm','distribution','n','U','median_ms','mean_ms','stddev_ms','min_ms','throughput_Mkeys_s','mem_kb','correct'];
+  const rows = [cols.join(',')];
+  for (const r of state.results) {
+    rows.push([
+      `"${r.algo}"`, `"${r.dist}"`, r.n, r.u,
+      r.median_ms.toFixed(3), r.mean_ms.toFixed(3),
+      r.stddev.toFixed(3),    r.min_ms.toFixed(3),
+      r.throughput.toFixed(3), r.mem_kb,
+      r.correct ? 'true' : 'false'
+    ].join(','));
+  }
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'dialsort_results.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  REFRESH FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+function populateFilters() {
+  if (state.results.length === 0) return;
+  const dists = [...new Set(state.results.map(r => r.dist))];
+  const us    = [...new Set(state.results.map(r => r.u))].sort((a, b) => a - b);
+  const algos = [...new Set(state.results.map(r => r.algo))];
+
+  const fill = (id, vals, includeAll = false) => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = (includeAll ? '<option value="all">All</option>' : '') +
+                    vals.map(v => `<option value="${v}">${v}</option>`).join('');
+    if ([...sel.options].some(o => o.value == cur)) sel.value = cur;
+  };
+  fill('filter-dist', dists);
+  fill('filter-u', us);
+  fill('tbl-filter-algo', algos, true);
+  fill('tbl-filter-dist', dists, true);
+}
+
+function refreshOverview() {
+  document.getElementById('stat-runs').textContent = state.results.length;
+
+  if (state.results.length === 0) {
+    document.getElementById('stat-best-tput').textContent = '—';
+    document.getElementById('stat-best-algo').textContent = 'No data yet';
+    document.getElementById('stat-speedup').textContent = '—';
+    if (state.charts.overview) { state.charts.overview.destroy(); state.charts.overview = null; }
+    return;
+  }
+
+  const valid = state.results.filter(r => r.correct);
+  if (valid.length === 0) return;
+  const best  = valid.reduce((a, b) => a.throughput > b.throughput ? a : b);
+  document.getElementById('stat-best-tput').textContent = best.throughput.toFixed(1) + ' M/s';
+  document.getElementById('stat-best-algo').textContent = best.algo;
+
+  const uniform = valid.filter(r => r.dist === 'Uniform');
+  if (uniform.length > 1) {
+    const dial    = uniform.find(r => r.algo === 'DialSort');
+    const slowest = uniform.reduce((a, b) => a.median_ms > b.median_ms ? a : b);
+    if (dial && slowest && dial.algo !== slowest.algo)
+      document.getElementById('stat-speedup').textContent =
+        (slowest.median_ms / dial.median_ms).toFixed(1) + '×';
+  }
+
+  if (state.charts.overview) state.charts.overview.destroy();
+  const samples = uniform.length ? uniform : valid;
+  const maxN    = Math.max(...samples.map(r => r.n));
+  const filt    = samples.filter(r => r.n === maxN);
+  const algos   = [...new Set(filt.map(r => r.algo))];
+  const data    = algos.map(a => filt.find(r => r.algo === a)?.median_ms || 0);
+  const colors  = algos.map(a => ALGO_INFO[a]?.color || '#888');
+
+  state.charts.overview = new Chart(document.getElementById('chart-overview'), {
+    type: 'bar',
+    data: {
+      labels: algos,
+      datasets: [{ label: 'Median ms', data, backgroundColor: colors.map(c => c + 'cc'), borderColor: colors, borderWidth: 1 }]
+    },
+    options: chartOpts(`Median ms at N=${maxN.toLocaleString()}`, 'ms')
+  });
+}
+
+function refreshCharts() {
+  if (state.results.length === 0) return;
+  populateFilters();
+
+  const dist   = document.getElementById('filter-dist').value;
+  const u      = parseInt(document.getElementById('filter-u').value);
+  const metric = document.getElementById('filter-metric').value;
+  const filtered = state.results.filter(r => r.dist === dist && r.u === u);
+  const algos    = [...new Set(filtered.map(r => r.algo))];
+  const ns       = [...new Set(filtered.map(r => r.n))].sort((a, b) => a - b);
+
+  if (state.charts.bar) state.charts.bar.destroy();
+  const maxN = ns[ns.length - 1] || 0;
+  const barData = algos.map(a => {
+    const r = filtered.find(x => x.algo === a && x.n === maxN);
+    return r ? r[metric] : 0;
+  });
+  state.charts.bar = new Chart(document.getElementById('chart-bar'), {
+    type: 'bar',
+    data: { labels: algos, datasets: [{
+      label: metric, data: barData,
+      backgroundColor: algos.map(a => (ALGO_INFO[a]?.color || '#888') + 'cc'),
+      borderColor:     algos.map(a => ALGO_INFO[a]?.color || '#888'),
+      borderWidth: 1,
+    }] },
+    options: chartOpts(`${metric} at N=${maxN.toLocaleString()}`, metric.includes('throughput') ? 'M keys/s' : metric.includes('mem') ? 'KB' : 'ms')
+  });
+
+  if (state.charts.scale) state.charts.scale.destroy();
+  const datasets = algos.map(a => {
+    const data = ns.map(n => {
+      const r = filtered.find(x => x.algo === a && x.n === n);
+      return r ? r[metric] : null;
+    });
+    const c = ALGO_INFO[a]?.color || '#888';
+    return { label: a, data, borderColor: c, backgroundColor: c + '33',
+             tension: 0.3, fill: false, pointRadius: 5, pointHoverRadius: 7 };
+  });
+  state.charts.scale = new Chart(document.getElementById('chart-scale'), {
+    type: 'line',
+    data: { labels: ns.map(n => n >= 1e6 ? (n/1e6)+'M' : (n/1e3)+'K'), datasets },
+    options: chartOpts('Scalability', metric.includes('throughput') ? 'M keys/s' : metric.includes('mem') ? 'KB' : 'ms')
+  });
+
+  buildHeatmap();
+}
+
+function buildHeatmap() {
+  const valid = state.results.filter(r => r.correct);
+  if (valid.length === 0) { document.getElementById('heatmap').innerHTML = ''; return; }
+  const algos = [...new Set(valid.map(r => r.algo))];
+  const dists = [...new Set(valid.map(r => r.dist))];
+
+  const cells = {};
+  for (const a of algos) for (const d of dists) {
+    const matches = valid.filter(r => r.algo === a && r.dist === d);
+    if (matches.length) {
+      const maxN = Math.max(...matches.map(r => r.n));
+      cells[a + '|' + d] = matches.find(r => r.n === maxN);
+    }
+  }
+
+  const all = Object.values(cells).map(c => c.median_ms);
+  const min = Math.min(...all), max = Math.max(...all);
+  const heatColor = v => {
+    const t = (v - min) / Math.max(0.001, max - min);
+    const r = (t * 220) | 0, g = ((1 - t) * 200) | 0;
+    return `rgba(${r},${g},80,0.35)`;
+  };
+
+  let html = '<table style="margin:0"><thead><tr><th>Algorithm</th>';
+  for (const d of dists) html += `<th>${d}</th>`;
+  html += '</tr></thead><tbody>';
+  for (const a of algos) {
+    const isDial = a === 'DialSort';
+    html += `<tr${isDial ? ' class="dial-row"' : ''}><td>${a}</td>`;
+    for (const d of dists) {
+      const c = cells[a + '|' + d];
+      if (c) html += `<td style="background:${heatColor(c.median_ms)};color:#fff;font-weight:600">${c.median_ms.toFixed(2)} ms</td>`;
+      else   html += `<td class="text-dim">—</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  document.getElementById('heatmap').innerHTML = html;
+}
+
+function refreshTable() {
+  populateFilters();
+  const filtA = document.getElementById('tbl-filter-algo').value;
+  const filtD = document.getElementById('tbl-filter-dist').value;
+  const search = document.getElementById('tbl-search').value.toLowerCase();
+  const tbody = document.getElementById('tbl-body');
+  const empty = document.getElementById('tbl-empty');
+
+  let rows = state.results.slice();
+  if (filtA !== 'all') rows = rows.filter(r => r.algo === filtA);
+  if (filtD !== 'all') rows = rows.filter(r => r.dist === filtD);
+  if (search) rows = rows.filter(r => (r.algo + r.dist + r.n + r.u).toLowerCase().includes(search));
+
+  if (rows.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  const bestMap = {};
+  for (const r of rows) {
+    const key = r.n + '|' + r.u + '|' + r.dist;
+    if (!bestMap[key] || r.median_ms < bestMap[key].median_ms) bestMap[key] = r;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const key = r.n + '|' + r.u + '|' + r.dist;
+    const isBest = bestMap[key] === r;
+    const cls = (r.algo === 'DialSort') ? 'dial-row' : '';
+    const okBadge = r.correct ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-err">FAIL</span>';
+    return `<tr class="${cls}">
+      <td>${r.algo}</td><td>${r.dist}</td>
+      <td>${r.n.toLocaleString()}</td><td>${r.u.toLocaleString()}</td>
+      <td class="${isBest ? 'cell-best' : ''}">${r.median_ms.toFixed(3)}</td>
+      <td>${r.mean_ms.toFixed(3)}</td>
+      <td>${r.stddev.toFixed(3)}</td>
+      <td>${r.min_ms.toFixed(3)}</td>
+      <td>${r.throughput.toFixed(2)}</td>
+      <td>${r.mem_kb.toLocaleString()}</td>
+      <td>${okBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+function refreshBigO() {
+  document.getElementById('bigo-body').innerHTML = Object.entries(ALGO_INFO).map(([name, info]) => {
+    const isDial = name === 'DialSort';
+    return `<tr class="${isDial ? 'dial-row' : ''}">
+      <td>${name}</td><td>${info.big.best}</td><td>${info.big.avg}</td>
+      <td>${info.big.worst}</td><td>${info.big.space}</td>
+      <td class="text-dim">${info.big.notes}</td>
+    </tr>`;
+  }).join('');
+
+  const dial = state.results.filter(r => r.algo === 'DialSort' && r.dist === 'Uniform');
+  if (dial.length < 2) {
+    if (state.charts.bigo) { state.charts.bigo.destroy(); state.charts.bigo = null; }
+    return;
+  }
+  dial.sort((a, b) => a.n - b.n);
+
+  if (state.charts.bigo) state.charts.bigo.destroy();
+  const lastN = dial[dial.length - 1].n;
+  const lastT = dial[dial.length - 1].median_ms;
+  state.charts.bigo = new Chart(document.getElementById('chart-bigo'), {
+    type: 'line',
+    data: {
+      labels: dial.map(r => r.n.toLocaleString()),
+      datasets: [
+        { label: 'Measured (ms)', data: dial.map(r => r.median_ms),
+          borderColor: '#4ade80', backgroundColor: '#4ade8033', tension: 0.2, pointRadius: 6 },
+        { label: 'Theoretical O(n) scaled', data: dial.map(r => r.n / lastN * lastT),
+          borderColor: '#22d3ee', borderDash: [6, 4], backgroundColor: 'transparent', tension: 0, pointRadius: 4 }
+      ]
+    },
+    options: chartOpts('DialSort: empirical vs theoretical', 'ms')
+  });
+}
+
+function chartOpts(title, yLabel) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#e6eaf2', font: { size: 11 } } },
+      title:  { display: !!title, text: title, color: '#8b95a8', font: { size: 12, weight: '500' } },
+      tooltip: { backgroundColor: '#161b27', borderColor: '#252c3d', borderWidth: 1 }
+    },
+    scales: {
+      x: { ticks: { color: '#8b95a8' }, grid: { color: '#252c3d' } },
+      y: { ticks: { color: '#8b95a8' }, grid: { color: '#252c3d' },
+           title: { display: true, text: yLabel, color: '#8b95a8' } }
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CSV IMPORT (drag & drop + click)
+// ═══════════════════════════════════════════════════════════════════════════
+const dropzone   = document.getElementById('dropzone');
+const fileInput  = document.getElementById('file-input');
+const importStat = document.getElementById('import-status');
+
+dropzone.addEventListener('click', () => fileInput.click());
+['dragenter', 'dragover'].forEach(e => dropzone.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.add('over'); }));
+['dragleave', 'drop'].forEach(e => dropzone.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.remove('over'); }));
+dropzone.addEventListener('drop', ev => { if (ev.dataTransfer.files[0]) loadFile(ev.dataTransfer.files[0]); });
+fileInput.addEventListener('change', ev => { if (ev.target.files[0]) loadFile(ev.target.files[0]); });
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = parseCSV(e.target.result);
+      if (parsed.length === 0) throw new Error('No valid rows found');
+      state.results = parsed;
+      importStat.innerHTML = `<span class="badge badge-ok">SUCCESS</span> Loaded ${parsed.length} rows from <strong>${file.name}</strong>`;
+      refreshOverview();
+      populateFilters();
+    } catch (err) {
+      importStat.innerHTML = `<span class="badge badge-err">ERROR</span> ${err.message}`;
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  EVENT WIRING
+// ═══════════════════════════════════════════════════════════════════════════
+document.getElementById('btn-run').addEventListener('click', runBenchmark);
+document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (confirm('Clear all results?')) {
+    state.results = [];
+    Object.values(state.charts).forEach(c => c?.destroy());
+    state.charts = {};
+    refreshOverview();
+    refreshTable();
+    document.getElementById('heatmap').innerHTML = '';
+  }
+});
+['filter-dist','filter-u','filter-metric'].forEach(id =>
+  document.getElementById(id).addEventListener('change', refreshCharts));
+['tbl-filter-algo','tbl-filter-dist','tbl-search'].forEach(id =>
+  document.getElementById(id).addEventListener('input', refreshTable));
+
+// Initial render
+refreshOverview();
+refreshBigO();
+</script>
+
+</body>
+</html>
