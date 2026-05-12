@@ -6,19 +6,7 @@
 > **Pure C++17** — no OpenMP, no TBB, no external dependencies.
 > Only the standard library + `std::thread`.
 
----
-
-## Team Members
-
-Team information is kept in `AUTHORS.private` (excluded from version control).
-To add your information locally, create that file in the project root:
-
-```
-Name:       Your Name Here
-Student ID: 000000000
-Course:     Algorithms & Data Structures
-Year:       2026
-```
+-Juan Sierra
 
 This file is listed in `.gitignore` and will never be uploaded to GitHub.
 
