@@ -11,14 +11,6 @@
 ## Team Members
 
 Team information is kept in `AUTHORS.private` (excluded from version control).
-To add your information locally, create that file in the project root:
-
-```
-Name:       Your Name Here
-Student ID: 000000000
-Course:     Algorithms & Data Structures
-Year:       2026
-```
 
 This file is in `.gitignore` and will never be uploaded to GitHub.
 ---
@@ -191,8 +183,6 @@ you will be asked to justify each entry. Key points:
 @techreport{narvaez2026dialsort,
   title  = {DialSort: Non-Comparative Integer Sorting via the Self-Indexing Principle},
   author = {Narvaez, Alexander},
-  institution = {Universidad EAFIT},
-  address = {Envigado, Colombia},
   month  = {March}, year = {2026}
 }
 ```
