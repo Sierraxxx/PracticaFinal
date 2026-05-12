@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/juanjo/Downloads/AN.Final/cmake-build-debug/cmake_install.cmake",
+		"/Users/juanjo/Downloads/AN.Final/cmake-build-debug/src/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

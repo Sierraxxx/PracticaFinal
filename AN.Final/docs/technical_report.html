@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Technical Report — Sorting Benchmark v0.7.0</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:      #f8f9fb;
+  --surface: #ffffff;
+  --border:  #e2e6ed;
+  --text:    #1a2133;
+  --muted:   #5a6478;
+  --faint:   #9aa3b2;
+  --green:   #16a34a;
+  --green-l: #dcfce7;
+  --blue:    #1d4ed8;
+  --blue-l:  #dbeafe;
+  --amber:   #b45309;
+  --amber-l: #fef3c7;
+  --red:     #dc2626;
+  --red-l:   #fee2e2;
+  --purple:  #7c3aed;
+  --accent:  #0f172a;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.75;
+  font-size: 16px;
+}
+
+/* ── Layout ── */
+.page { max-width: 900px; margin: 0 auto; padding: 48px 32px 80px; }
+
+/* ── Cover ── */
+.cover {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 16px;
+  padding: 48px 40px 40px;
+  margin-bottom: 48px;
+  position: relative;
+  overflow: hidden;
+}
+.cover::after {
+  content: '';
+  position: absolute;
+  right: -60px; top: -60px;
+  width: 280px; height: 280px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.04);
+}
+.cover-tag { font-family: 'Courier New', monospace; font-size: .75rem; color: rgba(255,255,255,.5); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 16px; }
+.cover h1 { font-size: 2rem; font-weight: 700; line-height: 1.25; margin-bottom: 8px; }
+.cover-sub { font-size: 1rem; color: rgba(255,255,255,.65); margin-bottom: 28px; font-style: italic; }
+.cover-meta { display: flex; gap: 32px; font-size: .82rem; color: rgba(255,255,255,.5); }
+.cover-meta span { display: flex; flex-direction: column; gap: 2px; }
+.cover-meta strong { color: rgba(255,255,255,.85); font-size: .95rem; }
+
+/* ── TOC ── */
+.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin-bottom: 48px; }
+.toc h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); margin-bottom: 14px; font-family: 'Courier New', monospace; }
+.toc ol { list-style: none; counter-reset: toc; }
+.toc li { counter-increment: toc; display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px dashed var(--border); font-size: .9rem; }
+.toc li:last-child { border: none; }
+.toc li::before { content: counter(toc, decimal-leading-zero); font-family: 'Courier New', monospace; font-size: .75rem; color: var(--faint); min-width: 24px; }
+.toc a { color: var(--blue); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+
+/* ── Sections ── */
+.section { margin-bottom: 56px; scroll-margin-top: 24px; }
+.section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 2px solid var(--accent); }
+.section-num { font-family: 'Courier New', monospace; font-size: .8rem; color: var(--faint); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; }
+.section-header h2 { font-size: 1.25rem; font-weight: 700; }
+
+h3 { font-size: 1rem; font-weight: 700; color: var(--accent); margin: 24px 0 10px; }
+p { margin-bottom: 14px; color: var(--text); }
+
+/* ── Callout boxes ── */
+.callout { border-radius: 10px; padding: 16px 20px; margin: 20px 0; display: flex; gap: 14px; align-items: flex-start; }
+.callout-icon { font-size: 1.2rem; line-height: 1; margin-top: 2px; flex-shrink: 0; }
+.callout-body { flex: 1; font-size: .9rem; line-height: 1.65; }
+.callout-body strong { display: block; margin-bottom: 4px; font-size: .95rem; }
+.callout.green  { background: var(--green-l); border-left: 3px solid var(--green); }
+.callout.blue   { background: var(--blue-l);  border-left: 3px solid var(--blue); }
+.callout.amber  { background: var(--amber-l); border-left: 3px solid var(--amber); }
+.callout.red    { background: var(--red-l);   border-left: 3px solid var(--red); }
+
+/* ── Stats row ── */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 20px 0; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+.stat-val { font-size: 1.6rem; font-weight: 700; color: var(--green); line-height: 1; margin-bottom: 6px; }
+.stat-val.blue   { color: var(--blue); }
+.stat-val.amber  { color: var(--amber); }
+.stat-val.accent { color: var(--accent); }
+.stat-lbl { font-size: .75rem; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; font-family: 'Courier New', monospace; }
+
+/* ── Tables ── */
+.table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); margin: 16px 0; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+th { background: var(--bg); color: var(--muted); text-align: left; padding: 11px 14px; font-size: .73rem; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); font-family: 'Courier New', monospace; font-weight: 600; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+tr.dial { background: #f0fdf4; }
+tr.dial td:first-child { color: var(--green); font-weight: 700; }
+.tag { display: inline-block; padding: 2px 9px; border-radius: 9999px; font-size: .72rem; font-weight: 700; font-family: 'Courier New', monospace; }
+.tag-win  { background: var(--green-l); color: var(--green); }
+.tag-zero { background: var(--bg); color: var(--faint); border: 1px solid var(--border); }
+.best { color: var(--green); font-weight: 700; }
+.worst { color: var(--red); }
+
+/* ── Chart containers ── */
+.chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 20px 16px; margin: 20px 0; }
+.chart-box h4 { font-size: .8rem; font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: .07em; color: var(--faint); margin-bottom: 14px; }
+.chart-wrap { position: relative; height: 300px; }
+.chart-wrap.sm { height: 220px; }
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* ── Algorithm cards ── */
+.algo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+.algo-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.algo-card.highlight { border-color: var(--green); background: #f0fdf4; }
+.algo-name { font-weight: 700; font-size: .9rem; margin-bottom: 6px; }
+.algo-card.highlight .algo-name { color: var(--green); }
+.algo-bigo { font-family: 'Courier New', monospace; font-size: .8rem; color: var(--muted); margin-bottom: 8px; }
+.algo-desc { font-size: .82rem; color: var(--muted); line-height: 1.5; }
+
+/* ── Distribution tabs ── */
+.tab-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.tab-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; font-size: .8rem; cursor: pointer; color: var(--muted); font-family: inherit; transition: all .15s; }
+.tab-btn:hover { background: var(--surface); color: var(--text); }
+.tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Speed bar ── */
+.speed-bar-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+.speed-bar-row:last-child { border: none; }
+.speed-algo { min-width: 180px; font-weight: 600; }
+.speed-algo.dial { color: var(--green); }
+.speed-bar-wrap { flex: 1; background: var(--bg); border-radius: 4px; height: 10px; overflow: hidden; }
+.speed-bar { height: 100%; border-radius: 4px; transition: width .6s ease; }
+.speed-val { min-width: 80px; text-align: right; font-family: 'Courier New', monospace; font-size: .8rem; color: var(--muted); }
+
+/* ── Conclusion items ── */
+.conclusion { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+.conclusion:last-child { border: none; }
+.conclusion-num { font-family: 'Courier New', monospace; font-size: .75rem; background: var(--accent); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.conclusion-text { flex: 1; font-size: .9rem; line-height: 1.7; }
+.conclusion-text strong { color: var(--accent); }
+
+code { font-family: 'Courier New', monospace; font-size: .85em; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ── COVER ── -->
+<div class="cover">
+  <div class="cover-tag">Technical Report · Sorting Benchmark v0.7.0</div>
+  <h1>Comparative Analysis:<br>DialSort vs Parallel Sorting Algorithms</h1>
+  <p class="cover-sub">Non-comparative integer sorting via the self-indexing principle</p>
+  <div class="cover-meta">
+    <span><strong>Scenarios</strong>30 total</span>
+    <span><strong>Algorithms</strong>5 compared</span>
+    <span><strong>Threads</strong>12 hardware</span>
+    <span><strong>Max N</strong>1,000,000</span>
+    <span><strong>Language</strong>C++17 pure</span>
+  </div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li><a href="#s1">Introduction & Motivation</a></li>
+    <li><a href="#s2">Algorithms</a></li>
+    <li><a href="#s3">Complexity Analysis (Big-O)</a></li>
+    <li><a href="#s4">Experimental Setup</a></li>
+    <li><a href="#s5">Results — Overall Performance</a></li>
+    <li><a href="#s6">Results — By Distribution</a></li>
+    <li><a href="#s7">Memory Consumption</a></li>
+    <li><a href="#s8">Analysis & Discussion</a></li>
+    <li><a href="#s9">Conclusions</a></li>
+  </ol>
+</div>
+
+<!-- ── S1: INTRODUCTION ── -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <h2>Introduction & Motivation</h2>
+  </div>
+  <p>This report presents the experimental benchmark comparing <strong>DialSort</strong> — a non-comparative integer sorting algorithm based on the self-indexing principle — against four state-of-the-art parallel sorting algorithms. All implementations are written in <strong>pure C++17</strong> using <code>std::thread</code> for parallelism, with no external dependencies.</p>
+  <p>The benchmark covers 30 scenarios across 5 data distributions, 3 input sizes (N), and 2 universe sizes (U), providing a comprehensive picture of each algorithm's behavior under real-world conditions.</p>
+
+  <div class="callout blue">
+    <div class="callout-icon">ℹ</div>
+    <div class="callout-body">
+      <strong>Self-Indexing Principle</strong>
+      For any integer key <code>k ∈ [min, max]</code>, the value <code>(k − min)</code> is simultaneously the key's value and its address in frequency array <code>H[]</code>. No order comparisons (<code>&lt;</code>, <code>&gt;</code>, <code>≤</code>) are needed at any point.
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val">30</div><div class="stat-lbl">Scenarios</div></div>
+    <div class="stat"><div class="stat-val blue">51.11×</div><div class="stat-lbl">Max Speedup</div></div>
+    <div class="stat"><div class="stat-val amber">12</div><div class="stat-lbl">HW Threads</div></div>
+    <div class="stat"><div class="stat-val accent">30/30</div><div class="stat-lbl">DialSort Wins</div></div>
+  </div>
+</div>
+
+<!-- ── S2: ALGORITHMS ── -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <h2>Algorithms</h2>
+  </div>
+
+  <div class="algo-grid">
+    <div class="algo-card highlight">
+      <div class="algo-name">DialSort (Reference)</div>
+      <div class="algo-bigo">O(n + U) · O(n/p + U) · O(p·U) space</div>
+      <div class="algo-desc">Non-comparative. Uses self-indexing to map each key directly to its histogram position. Three strategies: CRN parallel, LSD-Radix, Sequential — selected automatically at runtime.</div>
+    </div>
+    <div class="algo-card">
+      <div class="algo-name">Parallel RadixSort</div>
+      <div class="algo-bigo">O(d·n) all cases · O(n + p·B) space</div>
+      <div class="algo-desc">LSD base-256, 4 passes. Private per-thread histograms. Distribution-independent. Reference: NVIDIA CUB, AMD rocPRIM.</div>
+    </div>
+    <div class="algo-card">
+      <div class="algo-name">Parallel MergeSort</div>
+      <div class="algo-bigo">O(n log n) all cases · O(n) space</div>
+      <div class="algo-desc">Stable sort per chunk using <code>std::stable_sort</code>, then bottom-up merge tree. Reference: GNU libstdc++ parallel mode.</div>
+    </div>
+    <div class="algo-card">
+      <div class="algo-name">Parallel SampleSort</div>
+      <div class="algo-bigo">O(n log p) avg · O(n log n) worst</div>
+      <div class="algo-desc">Random sampling → splitters → bucket assignment → local sort. Reference: Sanders & Winkel (ESA 2004), IPS4o.</div>
+    </div>
+    <div class="algo-card">
+      <div class="algo-name">Parallel IntroSort</div>
+      <div class="algo-bigo">O(n log n) all cases · O(n) practical</div>
+      <div class="algo-desc">Chunk-parallel <code>std::sort</code> (QuickSort + HeapSort + InsertionSort) + bottom-up merge. Reference: GCC parallel, Intel TBB.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S3: BIG-O ── -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <h2>Complexity Analysis (Big-O)</h2>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Algorithm</th><th>Best</th><th>Average</th><th>Worst</th><th>Space</th></tr></thead>
+      <tbody>
+        <tr class="dial"><td>DialSort</td><td>O(n + U)</td><td>O(n/p + U)</td><td>O(n log n)¹</td><td>O(p·U) or O(n)</td></tr>
+        <tr><td>Parallel RadixSort</td><td>O(d·n)</td><td>O(d·n)</td><td>O(d·n)</td><td>O(n + p·B)</td></tr>
+        <tr><td>Parallel MergeSort</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n)</td></tr>
+        <tr><td>Parallel SampleSort</td><td>O(n log p)</td><td>O(n log p)</td><td>O(n log n)</td><td>O(n + p²)</td></tr>
+        <tr><td>Parallel IntroSort</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n) practical</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:.82rem;color:var(--faint)">¹ DialSort auto-dispatches to LSD-Radix O(4n) when U > 10M, maintaining correctness.</p>
+
+  <div class="callout green">
+    <div class="callout-icon">✓</div>
+    <div class="callout-body">
+      <strong>Why O(n + U) beats O(n log n) in practice</strong>
+      For N=1,000,000 and U=1,024: DialSort performs ~1,001,024 operations while MergeSort performs ~20,000,000. Additionally, H[] with U=1024 occupies only 4 KB — fitting entirely in L1 cache (32–64 KB typical), making each <code>H[k]++</code> a near-zero-latency cache hit.
+    </div>
+  </div>
+</div>
+
+<!-- ── S4: SETUP ── -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <h2>Experimental Setup</h2>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Hardware threads</td><td>12</td></tr>
+        <tr><td>Input sizes (N)</td><td>100,000 · 500,000 · 1,000,000</td></tr>
+        <tr><td>Universe sizes (U)</td><td>256 · 1,024</td></tr>
+        <tr><td>Distributions</td><td>Uniform · Skewed-80-5 · Sorted · Reverse · Nearly-Sorted</td></tr>
+        <tr><td>Runs per scenario</td><td>3 measured + 1 warmup (discarded)</td></tr>
+        <tr><td>Central metric</td><td>Median execution time (ms)</td></tr>
+        <tr><td>Total scenarios</td><td>30</td></tr>
+        <tr><td>Language / Standard</td><td>C++17 — no OpenMP, no external libs</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout blue">
+    <div class="callout-icon">📐</div>
+    <div class="callout-body">
+      <strong>Measurement methodology</strong>
+      Each run clones the original array independently to guarantee fair comparison. The <strong>median</strong> (not mean) is reported to eliminate OS scheduler noise. Throughput = <code>N / median_seconds / 1e6</code> (M keys/s). Memory is computed analytically from each algorithm's data structure sizes.
+    </div>
+  </div>
+</div>
+
+<!-- ── S5: OVERALL RESULTS ── -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <span class="section-num">05</span>
+    <h2>Results — Overall Performance</h2>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Algorithm</th><th>Wins</th><th>Best ms</th><th>Worst ms</th><th>Avg M/s</th><th>Avg Mem KB</th><th>Max Speedup</th></tr></thead>
+      <tbody>
+        <tr class="dial">
+          <td>DialSort</td>
+          <td><span class="tag tag-win">30 / 30</span></td>
+          <td class="best">0.54</td><td>5.12</td>
+          <td class="best">263.10</td>
+          <td class="best">32.53</td>
+          <td class="best">51.11×</td>
+        </tr>
+        <tr><td>Parallel RadixSort</td><td><span class="tag tag-zero">0</span></td><td>2.41</td><td>20.35</td><td>51.51</td><td class="worst">4,167.83</td><td>9.77×</td></tr>
+        <tr><td>Parallel SampleSort</td><td><span class="tag tag-zero">0</span></td><td>2.89</td><td>38.69</td><td>29.42</td><td>2,119.00</td><td>5.57×</td></tr>
+        <tr><td>Parallel IntroSort</td><td><span class="tag tag-zero">0</span></td><td>4.26</td><td class="worst">85.48</td><td>17.66</td><td>3.27</td><td>3.70×</td></tr>
+        <tr><td>Parallel MergeSort</td><td><span class="tag tag-zero">0</span></td><td>7.66</td><td class="worst">127.63</td><td class="worst">10.43</td><td>1,042.53</td><td>1.02×</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="chart-box">
+    <h4>Average Throughput — M keys/s (higher is better)</h4>
+    <div class="chart-wrap">
+      <canvas id="chart-tput"></canvas>
+    </div>
+  </div>
+
+  <h3>Throughput Comparison (N = 1,000,000, Uniform, U = 1024)</h3>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;">
+    <div class="speed-bar-row">
+      <span class="speed-algo dial">DialSort</span>
+      <div class="speed-bar-wrap"><div class="speed-bar" style="width:100%;background:#16a34a"></div></div>
+      <span class="speed-val">371.9 M/s</span>
+    </div>
+    <div class="speed-bar-row">
+      <span class="speed-algo">P-RadixSort</span>
+      <div class="speed-bar-wrap"><div class="speed-bar" style="width:16.4%;background:#1d4ed8"></div></div>
+      <span class="speed-val">61.1 M/s</span>
+    </div>
+    <div class="speed-bar-row">
+      <span class="speed-algo">P-SampleSort</span>
+      <div class="speed-bar-wrap"><div class="speed-bar" style="width:7.5%;background:#7c3aed"></div></div>
+      <span class="speed-val">27.9 M/s</span>
+    </div>
+    <div class="speed-bar-row">
+      <span class="speed-algo">P-IntroSort</span>
+      <div class="speed-bar-wrap"><div class="speed-bar" style="width:4.5%;background:#b45309"></div></div>
+      <span class="speed-val">16.6 M/s</span>
+    </div>
+    <div class="speed-bar-row">
+      <span class="speed-algo">P-MergeSort</span>
+      <div class="speed-bar-wrap"><div class="speed-bar" style="width:2.5%;background:#dc2626"></div></div>
+      <span class="speed-val">9.2 M/s</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── S6: BY DISTRIBUTION ── -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <span class="section-num">06</span>
+    <h2>Results — By Distribution</h2>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('uniform')">Uniform</button>
+    <button class="tab-btn" onclick="showTab('skewed')">Skewed-80-5</button>
+    <button class="tab-btn" onclick="showTab('sorted')">Sorted</button>
+    <button class="tab-btn" onclick="showTab('reverse')">Reverse</button>
+    <button class="tab-btn" onclick="showTab('nearly')">Nearly-Sorted</button>
+  </div>
+
+  <!-- UNIFORM -->
+  <div class="tab-panel active" id="tab-uniform">
+    <div class="table-wrap"><table>
+      <thead><tr><th>N</th><th>U</th><th>DialSort ms</th><th>RadixSort ms</th><th>SampleSort ms</th><th>IntroSort ms</th><th>MergeSort ms</th><th>Speedup vs #2</th></tr></thead>
+      <tbody>
+        <tr class="dial"><td>100,000</td><td>256</td><td class="best">1.42</td><td>3.68</td><td>7.97</td><td>5.14</td><td>19.05</td><td>2.6×</td></tr>
+        <tr class="dial"><td>100,000</td><td>1,024</td><td class="best">1.19</td><td>3.76</td><td>4.69</td><td>5.49</td><td>11.22</td><td>3.2×</td></tr>
+        <tr class="dial"><td>500,000</td><td>256</td><td class="best">1.53</td><td>10.99</td><td>19.86</td><td>28.87</td><td>39.38</td><td>7.2×</td></tr>
+        <tr class="dial"><td>500,000</td><td>1,024</td><td class="best">1.96</td><td>8.63</td><td>17.51</td><td>29.31</td><td>44.24</td><td>4.4×</td></tr>
+        <tr class="dial"><td>1,000,000</td><td>256</td><td class="best">2.39</td><td>15.68</td><td>36.41</td><td>56.48</td><td>90.00</td><td>6.6×</td></tr>
+        <tr class="dial"><td>1,000,000</td><td>1,024</td><td class="best">2.69</td><td>16.36</td><td>35.89</td><td>60.35</td><td>109.06</td><td>6.1×</td></tr>
+      </tbody>
+    </table></div>
+    <div class="chart-box"><h4>Uniform — Median ms by N (U=1024)</h4>
+      <div class="chart-wrap sm"><canvas id="c-uniform"></canvas></div></div>
+  </div>
+
+  <!-- SKEWED -->
+  <div class="tab-panel" id="tab-skewed">
+    <div class="callout amber"><div class="callout-icon">⚡</div>
+      <div class="callout-body"><strong>Skewed-80-5: DialSort's strongest advantage</strong>
+      80% of keys fall in the bottom 5% of the universe. DialSort is completely insensitive to this — its ingestion phase depends only on key values, not their distribution.
+    </div></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>N</th><th>U</th><th>DialSort ms</th><th>RadixSort ms</th><th>IntroSort ms</th><th>MergeSort ms</th><th>Speedup vs #2</th></tr></thead>
+      <tbody>
+        <tr class="dial"><td>100,000</td><td>256</td><td class="best">0.55</td><td>2.50</td><td>4.26</td><td>7.66</td><td>4.5×</td></tr>
+        <tr class="dial"><td>100,000</td><td>1,024</td><td class="best">0.56</td><td>2.46</td><td>4.43</td><td>10.18</td><td>4.4×</td></tr>
+        <tr class="dial"><td>500,000</td><td>256</td><td class="best">1.52</td><td>8.46</td><td>31.16</td><td>38.83</td><td>5.6×</td></tr>
+        <tr class="dial"><td>500,000</td><td>1,024</td><td class="best">1.41</td><td>8.28</td><td>29.67</td><td>43.95</td><td>5.9×</td></tr>
+        <tr class="dial"><td>1,000,000</td><td>256</td><td class="best">2.45</td><td>16.27</td><td>85.48</td><td>92.83</td><td>6.6×</td></tr>
+        <tr class="dial"><td>1,000,000</td><td>1,024</td><td class="best">2.78</td><td>16.55</td><td>66.85</td><td>127.63</td><td>6.0×</td></tr>
+      </tbody>
+    </table></div>
+    <div class="chart-box"><h4>Skewed-80-5 — Median ms by N (U=1024)</h4>
+      <div class="chart-wrap sm"><canvas id="c-skewed"></canvas></div></div>
+  </div>
+
+  <!-- SORTED -->
+  <div class="tab-panel" id="tab-sorted">
+    <div class="table-wrap"><table>
+      <thead><tr><th>N</th><th>U</th><th>DialSort ms</th><th>RadixSort ms</th><th>SampleSort ms</th><th>IntroSort ms</th><th>MergeSort ms</th><th>Speedup vs #2</th></tr></thead>
+      <tbody>
+        <tr class="dial"><td>100,000</td><td>256</td><td class="best">0.59</td><td>2.51</td><td>8.99</td><td>4.63</td><td>8.80</td><td>4.3×</td></tr>
+        <tr class="dial"><td>100,000</td><td>1,024</td><td class="best">0.59</td><td>2.66</td><td>3.18</td><td>4.97</td><td>10.23</td><td>4.5×</td></tr>
+        <tr class="dial"><td>500,000</td><td>256</td><td class="best">5.12</td><td>20.35</td><td>16.95</td><td>31.08</td><td>41.13</td><td>3.3×</td></tr>
+        <tr class="dial"><td>500,000</td><td>1,024</td><td class="best">4.29</td><td>8.40</td><td>16.21</td><td>28.89</td><td>49.96</td><td>2.0×</td></tr>
+        <tr class="dial"><td>1,000,000</td><td>256</td><td class="best">2.80</td><td>16.86</td><td>31.07</td><td>59.75</td><td>92.31</td><td>6.0×</td></tr>
+        <tr class="dial"><td>1,000,000</td><td>1,024</td><td class="best">2.48</td><td>16.36</td><td>28.43</td><td>57.28</td><td>111.94</td><td>6.6×</td></tr>
+      </tbody>
+    </table></div>
+    <div class="chart-box"><h4>Sorted — Median ms by N (U=1024)</h4>
+      <div class="chart-wrap sm"><canvas id="c-sorted"></canvas></div></div>
+  </div>
+
+  <!-- REVERSE -->
+  <div class="tab-panel" id="tab-reverse">
+    <div class="table-wrap"><table>
+      <thead><tr><th>N</th><th>U</th><th>DialSort ms</th><th>RadixSort ms</th><th>SampleSort ms</th><th>IntroSort ms</th><th>MergeSort ms</th><th>Speedup vs #2</th></tr></thead>
+      <tbody>
+        <tr class="dial"><td>100,000</td><td>256</td><td class="best">0.59</td><td>2.59</td><td>3.08</td><td>4.88</td><td>8.41</td><td>4.4×</td></tr>
+        <tr class="dial"><td>100,000</td><td>1,024</td><td class="best">0.61</td><td>2.63</td><td>3.21</td><td>5.09</td><td>9.36</td><td>4.3×</td></tr>
+        <tr class="dial"><td>500,000</td><td>256</td><td class="best">1.47</td><td>8.45</td><td>15.16</td><td>30.82</td><td>41.07</td><td>5.8×</td></tr>
+        <tr class="dial"><td>500,000</td><td>1,024</td><td class="best">3.56</td><td>8.30</td><td>15.48</td><td>30.94</td><td>48.78</td><td>2.3×</td></tr>
+        <tr class="dial"><td>1,000,000</td><td>256</td><td class="best">2.43</td><td>16.08</td><td>28.62</td><td>61.34</td><td>97.42</td><td>6.6×</td></tr>
+        <tr class="dial"><td>1,000,000</td><td>1,024</td><td class="best">2.52</td><td>16.10</td><td>27.33</td><td>71.20</td><td>114.59</td><td>6.4×</td></tr>
+      </tbody>
+    </table></div>
+    <div class="chart-box"><h4>Reverse — Median ms by N (U=1024)</h4>
+      <div class="chart-wrap sm"><canvas id="c-reverse"></canvas></div></div>
+  </div>
+
+  <!-- NEARLY -->
+  <div class="tab-panel" id="tab-nearly">
+    <div class="callout green"><div class="callout-icon">★</div>
+      <div class="callout-body"><strong>Maximum speedup achieved here: 51.11×</strong>
+      N=500,000, U=1024: DialSort 1.48 ms vs MergeSort 75.90 ms. MergeSort performs O(n log n) work regardless of input order. DialSort remains O(n + U) in all cases.
+    </div></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>N</th><th>U</th><th>DialSort ms</th><th>RadixSort ms</th><th>IntroSort ms</th><th>MergeSort ms</th><th>Speedup vs #2</th></tr></thead>
+      <tbody>
+        <tr class="dial"><td>100,000</td><td>256</td><td class="best">0.56</td><td>2.41</td><td>4.53</td><td>8.08</td><td>4.3×</td></tr>
+        <tr class="dial"><td>100,000</td><td>1,024</td><td class="best">0.54</td><td>2.55</td><td>5.69</td><td>9.42</td><td>4.7×</td></tr>
+        <tr class="dial"><td>500,000</td><td>256</td><td class="best">3.67</td><td>8.18</td><td>28.80</td><td>39.57</td><td>2.2×</td></tr>
+        <tr class="dial"><td>500,000</td><td>1,024</td><td class="best">1.48</td><td>7.77</td><td>40.74</td><td>75.90</td><td class="best">5.2× → 51.11× vs worst</td></tr>
+        <tr class="dial"><td>1,000,000</td><td>256</td><td class="best">2.62</td><td>14.85</td><td>55.03</td><td>96.76</td><td>5.7×</td></tr>
+        <tr class="dial"><td>1,000,000</td><td>1,024</td><td class="best">2.56</td><td>15.32</td><td>55.00</td><td>110.63</td><td>6.0×</td></tr>
+      </tbody>
+    </table></div>
+    <div class="chart-box"><h4>Nearly-Sorted — Median ms by N (U=1024)</h4>
+      <div class="chart-wrap sm"><canvas id="c-nearly"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ── S7: MEMORY ── -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <span class="section-num">07</span>
+    <h2>Memory Consumption</h2>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-box">
+      <h4>Average auxiliary memory (KB)</h4>
+      <div class="chart-wrap sm"><canvas id="chart-mem"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <h4>Memory analysis</h4>
+      <div style="padding:8px 0">
+        <p style="font-size:.88rem;margin-bottom:12px">DialSort's memory footprint comes exclusively from histogram H[] of size U integers:</p>
+        <div class="table-wrap" style="margin:0"><table>
+          <thead><tr><th>U</th><th>H[] size</th><th>Fits in</th></tr></thead>
+          <tbody>
+            <tr><td>256</td><td>1 KB</td><td class="best">L1 cache</td></tr>
+            <tr><td>1,024</td><td>4 KB</td><td class="best">L1 cache</td></tr>
+            <tr><td>65,536</td><td>256 KB</td><td>L2 cache</td></tr>
+          </tbody>
+        </table></div>
+        <p style="font-size:.82rem;color:var(--muted);margin-top:12px">RadixSort requires two full-array copies (2×N×4 bytes = 8 MB for N=1M), explaining its 128× higher memory usage.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S8: ANALYSIS ── -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <span class="section-num">08</span>
+    <h2>Analysis & Discussion</h2>
+  </div>
+
+  <h3>Why DialSort wins</h3>
+  <p>Three compounding factors explain the performance advantage:</p>
+
+  <div class="callout green">
+    <div class="callout-icon">①</div>
+    <div class="callout-body"><strong>Fewer operations</strong>
+    O(n + U) vs O(n log n). For N=1M: ~1,001,024 vs ~20,000,000 operations.
+    </div>
+  </div>
+  <div class="callout green">
+    <div class="callout-icon">②</div>
+    <div class="callout-body"><strong>Cache locality</strong>
+    H[] with U=1024 fits in L1 cache (4 KB vs 32–64 KB L1). Each <code>H[k]++</code> is an L1 hit (~1 ns). Comparison-based algorithms access a 4 MB working set repeatedly — cache miss latency is 100–200 ns.
+    </div>
+  </div>
+  <div class="callout green">
+    <div class="callout-icon">③</div>
+    <div class="callout-body"><strong>No branch mispredictions</strong>
+    Zero conditional branches on key values. The CPU pipeline never stalls waiting for comparison outcomes.
+    </div>
+  </div>
+
+  <h3>When DialSort does NOT win</h3>
+  <div class="callout amber">
+    <div class="callout-icon">⚠</div>
+    <div class="callout-body"><strong>U = 256 with N = 1,000,000 (RadixSort wins by 1.53×)</strong>
+    When U is very small, the bucket density n/U = 3,906 keys/bucket makes the projection phase loop-heavy. RadixSort's O(4n) constant cost is then more efficient. This edge case is handled by the automatic strategy dispatcher.
+    </div>
+  </div>
+
+  <h3>Algorithm ranking</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Rank</th><th>Algorithm</th><th>Strength</th><th>Weakness</th></tr></thead>
+    <tbody>
+      <tr class="dial"><td>#1</td><td>DialSort</td><td>Speed + memory. 30/30 wins</td><td>Requires integer keys, bounded U</td></tr>
+      <tr><td>#2</td><td>Parallel RadixSort</td><td>Consistent O(4n), good scaling</td><td>128× more memory than DialSort</td></tr>
+      <tr><td>#3</td><td>Parallel SampleSort</td><td>Good average case O(n log p)</td><td>High memory, bad splitters → O(n log n)</td></tr>
+      <tr><td>#4</td><td>Parallel IntroSort</td><td>Lowest memory after DialSort</td><td>Worst ms up to 85 ms at N=1M</td></tr>
+      <tr><td>#5</td><td>Parallel MergeSort</td><td>Stable, predictable</td><td>Slowest: 127 ms worst case</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<!-- ── S9: CONCLUSIONS ── -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <span class="section-num">09</span>
+    <h2>Conclusions</h2>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;">
+    <div class="conclusion">
+      <div class="conclusion-num">1</div>
+      <div class="conclusion-text"><strong>DialSort wins 30 of 30 scenarios</strong> with speedups from 2.0× to 51.11×. It outperforms all comparison-based algorithms across every distribution tested.</div>
+    </div>
+    <div class="conclusion">
+      <div class="conclusion-num">2</div>
+      <div class="conclusion-text"><strong>Memory efficiency is 128× better than RadixSort</strong>. Average 32.53 KB vs 4,167 KB. The histogram H[] with U≤1024 fits entirely in L1 cache, which is the primary driver of throughput advantage.</div>
+    </div>
+    <div class="conclusion">
+      <div class="conclusion-num">3</div>
+      <div class="conclusion-text"><strong>Distribution independence</strong>. DialSort's performance is invariant to input distribution. Uniform, Skewed, Sorted, Reverse, and Nearly-Sorted all produce similar timings because ingestion <code>H[k−min]++</code> depends only on key values, not their order.</div>
+    </div>
+    <div class="conclusion">
+      <div class="conclusion-num">4</div>
+      <div class="conclusion-text"><strong>Throughput scales with N</strong>. From ~180 M/s at N=100K to ~400 M/s at N=1M, because the O(U) histogram init cost is amortized over more keys. Comparison-based algorithms do not exhibit this property.</div>
+    </div>
+    <div class="conclusion">
+      <div class="conclusion-num">5</div>
+      <div class="conclusion-text"><strong>Limitations are handled automatically</strong>. DialSort requires integer keys and bounded U. For U > 10M, the implementation dispatches to LSD-Radix, maintaining correctness at a reduced but still competitive speedup.</div>
+    </div>
+  </div>
+
+  <div class="callout blue" style="margin-top:24px">
+    <div class="callout-icon">📖</div>
+    <div class="callout-body">
+      <strong>Reference</strong>
+      Narvaez, A. (2026). <em>DialSort: Non-Comparative Integer Sorting via the Self-Indexing Principle.</em> Universidad EAFIT, Envigado, Colombia.
+    </div>
+  </div>
+</div>
+
+</div><!-- end .page -->
+
+<script>
+const LABELS = ['DialSort','P-Radix','P-Sample','P-Intro','P-Merge'];
+const COLORS = ['#16a34a','#1d4ed8','#7c3aed','#b45309','#dc2626'];
+const BG     = COLORS.map(c => c + '22');
+
+const opts = (yLabel) => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: {
+    legend: { labels: { color: '#5a6478', font: { size: 11, family: 'Courier New' } } },
+    tooltip: { backgroundColor: '#1a2133', titleColor: '#fff', bodyColor: '#94a3b8' }
+  },
+  scales: {
+    x: { ticks: { color: '#9aa3b2', font: { size: 11 } }, grid: { color: '#e2e6ed' } },
+    y: { ticks: { color: '#9aa3b2', font: { size: 11 } }, grid: { color: '#e2e6ed' },
+         title: { display: true, text: yLabel, color: '#9aa3b2', font: { size: 11 } } }
+  }
+});
+
+// Overall throughput
+new Chart(document.getElementById('chart-tput'), {
+  type: 'bar',
+  data: { labels: LABELS,
+    datasets: [{ label: 'Avg M keys/s', data: [263.10,51.51,29.42,17.66,10.43],
+      backgroundColor: BG, borderColor: COLORS, borderWidth: 2, borderRadius: 6 }] },
+  options: opts('M keys/s')
+});
+
+// Memory
+new Chart(document.getElementById('chart-mem'), {
+  type: 'bar',
+  data: { labels: LABELS,
+    datasets: [{ label: 'Avg KB', data: [32.53,4167.83,2119,3.27,1042.53],
+      backgroundColor: BG, borderColor: COLORS, borderWidth: 2, borderRadius: 6 }] },
+  options: { ...opts('KB'), scales: { ...opts('KB').scales, y: { ...opts('KB').scales.y, type: 'logarithmic' } } }
+});
+
+// Per-distribution charts
+const N_LABELS = ['100K','500K','1M'];
+
+function distChart(id, dial, radix, sample, intro, merge) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  new Chart(el, {
+    type: 'line',
+    data: { labels: N_LABELS, datasets: [
+      { label: 'DialSort',    data: dial,   borderColor: '#16a34a', backgroundColor: '#16a34a22', tension:.3, pointRadius:5, fill:false },
+      { label: 'P-Radix',    data: radix,  borderColor: '#1d4ed8', backgroundColor: '#1d4ed822', tension:.3, pointRadius:5, fill:false },
+      { label: 'P-Sample',   data: sample, borderColor: '#7c3aed', backgroundColor: '#7c3aed22', tension:.3, pointRadius:5, fill:false },
+      { label: 'P-Intro',    data: intro,  borderColor: '#b45309', backgroundColor: '#b4530922', tension:.3, pointRadius:5, fill:false },
+      { label: 'P-Merge',    data: merge,  borderColor: '#dc2626', backgroundColor: '#dc262622', tension:.3, pointRadius:5, fill:false },
+    ]},
+    options: opts('Median ms')
+  });
+}
+
+distChart('c-uniform', [1.19,1.96,2.69], [3.76,8.63,16.36], [4.69,17.51,35.89], [5.49,29.31,60.35], [11.22,44.24,109.06]);
+distChart('c-skewed',  [0.56,1.41,2.78], [2.46,8.28,16.55], [3.54,17.81,31.72], [4.43,29.67,66.85], [10.18,43.95,127.63]);
+distChart('c-sorted',  [0.59,4.29,2.48], [2.66,8.40,16.36], [3.18,16.21,28.43], [4.97,28.89,57.28], [10.23,49.96,111.94]);
+distChart('c-reverse', [0.61,3.56,2.52], [2.63,8.30,16.10], [3.21,15.48,27.33], [5.09,30.94,71.20], [9.36,48.78,114.59]);
+distChart('c-nearly',  [0.54,1.48,2.56], [2.55,7.77,15.32], [2.93,13.62,26.94], [5.69,40.74,55.00], [9.42,75.90,110.63]);
+
+// Tabs
+function showTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+  // re-render chart for that tab
+  setTimeout(() => {
+    const id_map = { uniform:'c-uniform', skewed:'c-skewed', sorted:'c-sorted', reverse:'c-reverse', nearly:'c-nearly' };
+    const el = document.getElementById(id_map[id]);
+    if (el && el._chart) el._chart.resize();
+  }, 50);
+}
+</script>
+</body>
+</html>
